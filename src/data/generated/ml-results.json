@@ -1,0 +1,211 @@
+{
+  "config": {
+    "students": 100,
+    "labelNoise": 0.005,
+    "unusualPerStudent": [
+      1,
+      6
+    ]
+  },
+  "primary": {
+    "seed": 2026,
+    "counts": {
+      "train": {
+        "students": 60,
+        "rows": 7127,
+        "positives": 230
+      },
+      "validation": {
+        "students": 20,
+        "rows": 2350,
+        "positives": 83
+      },
+      "test": {
+        "students": 20,
+        "rows": 2432,
+        "positives": 83
+      }
+    },
+    "threshold": 0.8,
+    "test": {
+      "confusion": {
+        "truePositive": 46,
+        "falsePositive": 64,
+        "trueNegative": 2285,
+        "falseNegative": 37
+      },
+      "precision": 0.41818181818181815,
+      "recall": 0.5542168674698795,
+      "prAuc": 0.5159905471598616,
+      "randomPrAuc": 0.03412828947368421
+    },
+    "ruleBaseline": {
+      "description": "Flag if the amount is at least 3x the student's category median so far.",
+      "confusion": {
+        "truePositive": 30,
+        "falsePositive": 77,
+        "trueNegative": 2272,
+        "falseNegative": 53
+      },
+      "precision": 0.2803738317757009,
+      "recall": 0.3614457831325301,
+      "prAuc": 0.17239118316976731
+    },
+    "thresholdTable": [
+      {
+        "threshold": 0.1,
+        "flagged": 2174,
+        "precision": 0.038178472861085555,
+        "recall": 1,
+        "falsePositives": 2091
+      },
+      {
+        "threshold": 0.3,
+        "flagged": 929,
+        "precision": 0.08288482238966631,
+        "recall": 0.927710843373494,
+        "falsePositives": 852
+      },
+      {
+        "threshold": 0.5,
+        "flagged": 448,
+        "precision": 0.15401785714285715,
+        "recall": 0.8313253012048193,
+        "falsePositives": 379
+      },
+      {
+        "threshold": 0.7,
+        "flagged": 212,
+        "precision": 0.24056603773584906,
+        "recall": 0.6144578313253012,
+        "falsePositives": 161
+      },
+      {
+        "threshold": 0.9,
+        "flagged": 69,
+        "precision": 0.5362318840579711,
+        "recall": 0.4457831325301205,
+        "falsePositives": 32
+      }
+    ],
+    "recallByKind": [
+      {
+        "kind": "legit_large",
+        "total": 32,
+        "caught": 31
+      },
+      {
+        "kind": "legit_textbooks",
+        "total": 20,
+        "caught": 4
+      },
+      {
+        "kind": "normal",
+        "total": 2297,
+        "caught": 29
+      },
+      {
+        "kind": "unusual_duplicate",
+        "total": 19,
+        "caught": 19
+      },
+      {
+        "kind": "unusual_large_new",
+        "total": 27,
+        "caught": 26
+      },
+      {
+        "kind": "unusual_spike",
+        "total": 10,
+        "caught": 0
+      },
+      {
+        "kind": "unusual_subtle",
+        "total": 18,
+        "caught": 1
+      },
+      {
+        "kind": "wrong_label",
+        "total": 9,
+        "caught": 0
+      }
+    ],
+    "model": {
+      "weights": [
+        0.40345077817099806,
+        0.44719848009017243,
+        0.8068294737043273,
+        -0.1602908237244341,
+        0.7490085224755533,
+        0.2870500354545053,
+        0.03466089939327519
+      ],
+      "bias": -0.916735485741844,
+      "means": [
+        7.47746253332428,
+        -0.006560578372424502,
+        0.23740704363687387,
+        0.04069033253823488,
+        0.00617370562649081,
+        3.806567260744274,
+        0.33801038305037184
+      ],
+      "stds": [
+        0.7690959880843751,
+        0.6927357091364308,
+        0.42549375937666245,
+        0.20591771456685087,
+        0.07833001331117677,
+        0.9331700583376875,
+        0.4730320961631443
+      ]
+    }
+  },
+  "seedRuns": [
+    {
+      "seed": 2026,
+      "threshold": 0.8,
+      "precision": 0.41818181818181815,
+      "recall": 0.5542168674698795,
+      "prAuc": 0.5159905471598616,
+      "randomPrAuc": 0.03412828947368421,
+      "rulePrAuc": 0.17239118316976731
+    },
+    {
+      "seed": 11,
+      "threshold": 0.92,
+      "precision": 0.6727272727272727,
+      "recall": 0.45121951219512196,
+      "prAuc": 0.5896770172769416,
+      "randomPrAuc": 0.034152436484798,
+      "rulePrAuc": 0.22808980823459327
+    },
+    {
+      "seed": 23,
+      "threshold": 0.88,
+      "precision": 0.515625,
+      "recall": 0.36666666666666664,
+      "prAuc": 0.4068210821095773,
+      "randomPrAuc": 0.03743760399334443,
+      "rulePrAuc": 0.1927636637267644
+    },
+    {
+      "seed": 37,
+      "threshold": 0.91,
+      "precision": 0.6842105263157895,
+      "recall": 0.5842696629213483,
+      "prAuc": 0.6203219167448321,
+      "randomPrAuc": 0.038395168248490076,
+      "rulePrAuc": 0.29689850521066397
+    },
+    {
+      "seed": 41,
+      "threshold": 0.94,
+      "precision": 0.7162162162162162,
+      "recall": 0.5638297872340425,
+      "prAuc": 0.6601349267896006,
+      "randomPrAuc": 0.04015378043571124,
+      "rulePrAuc": 0.25650584396303555
+    }
+  ]
+}

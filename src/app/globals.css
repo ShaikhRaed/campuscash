@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Design tokens: every color and font in the app is named here once.
+   Tailwind turns each --color-* into classes such as bg-paper and text-forest. */
+@theme inline {
+  --color-paper: #f4efe3;
+  --color-surface: #fbf8f1;
+  --color-rule: #dbd3c0;
+  --color-ink: #16261e;
+  --color-ink-soft: #475449;
+  --color-forest: #1d5a40;
+  --color-forest-deep: #123d2b;
+  --color-forest-soft: #d5e0d0;
+  --color-pennant: #b5381a;
+  --color-marigold: #e8b23a;
+
+  --font-sans: var(--font-bricolage);
+  --font-display: var(--font-young-serif);
+  --font-mono: var(--font-dm-mono);
+}
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* Motion only runs for people who have not asked their system to reduce it. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    animation: reveal 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  .grow-up {
+    animation: grow-up 620ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    transform-origin: bottom;
+  }
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes grow-up {
+  from {
+    transform: scaleY(0);
+  }
+}

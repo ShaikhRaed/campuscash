@@ -1,0 +1,71 @@
+{
+  "passages": 27,
+  "minCoverage": 0.5,
+  "development": {
+    "answerable": 25,
+    "unanswerable": 8,
+    "recall": {
+      "keyword": {
+        "1": 0.88,
+        "3": 1,
+        "5": 1
+      },
+      "semantic": {
+        "1": 0.72,
+        "3": 0.88,
+        "5": 0.96
+      },
+      "hybrid": {
+        "1": 0.8,
+        "3": 1,
+        "5": 1
+      }
+    },
+    "hybridMissesAt3": [],
+    "support": {
+      "answerableAnswered": 23,
+      "answerableRefused": [
+        "Is there a free way to read assigned books at the library?",
+        "I found the same book cheaper online, will the store match it?"
+      ],
+      "unanswerableRefused": 6,
+      "unanswerableWronglyAnswered": [
+        "How much does graduate tuition cost per credit?",
+        "When does the spring semester start?"
+      ]
+    }
+  },
+  "heldOut": {
+    "answerable": 10,
+    "unanswerable": 5,
+    "recall": {
+      "keyword": {
+        "1": 0.8,
+        "3": 0.9,
+        "5": 0.9
+      },
+      "semantic": {
+        "1": 0.8,
+        "3": 1,
+        "5": 1
+      },
+      "hybrid": {
+        "1": 0.8,
+        "3": 0.9,
+        "5": 1
+      }
+    },
+    "hybridMissesAt3": [
+      "By what day do rented books have to come back?"
+    ],
+    "support": {
+      "answerableAnswered": 8,
+      "answerableRefused": [
+        "By what day do rented books have to come back?",
+        "Where is the pantry located on campus?"
+      ],
+      "unanswerableRefused": 5,
+      "unanswerableWronglyAnswered": []
+    }
+  }
+}
