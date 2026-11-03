@@ -43,3 +43,6 @@ next-env.d.ts
 # playwright
 /test-results/
 /playwright-report/
+
+# repo-local Ollama runtime and downloaded models
+/.ollama-local/

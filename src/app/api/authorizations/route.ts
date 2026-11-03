@@ -1,50 +1,49 @@
-// POST /api/authorizations: the demo's stand-in for "the student signs". Anyone who
-// can reach this route can get a signature, because there is no login. That is the
-// biggest reason this is a prototype and not real authorization.
+// POST sets a student's grant, replacing any earlier one. DELETE revokes it. This stands
+// in for the student acting, but there is no login, so a signature here is not consent.
 
 import { findProfile } from "@/data/profiles";
 import { semester } from "@/data/sampleStudent";
-import { issueDemoAuthorization } from "@/lib/authorization/demoRuntime";
+import { issueGrant, revokeGrant } from "@/lib/authorization/demoRuntime";
+import { parseScope } from "@/lib/authorization/schema";
 
-const DEFAULT_TTL_SECONDS = 600;
-const EXPIRED_DEMO_TTL_SECONDS = -60;
+const validWeek = (w: unknown) =>
+  Number.isInteger(w) && (w as number) >= 1 && (w as number) <= semester.totalWeeks;
 
 export async function POST(request: Request) {
-  const body: unknown = await request.json().catch(() => null);
-  if (typeof body !== "object" || body === null) {
-    return Response.json({ error: "Body must be JSON." }, { status: 400 });
-  }
-  const { profileId, week, merchant, category, maxAmountCents, challengeConfirmed, demoExpired } =
-    body as Record<string, unknown>;
-
-  const validText = (v: unknown) => typeof v === "string" && v.trim().length > 0 && v.length <= 200;
+  const body = (await request.json().catch(() => null)) as Record<string, unknown> | null;
+  const scope = parseScope(body?.scope);
   if (
-    !findProfile(String(profileId)) ||
-    !Number.isInteger(week) ||
-    (week as number) < 1 ||
-    (week as number) > semester.totalWeeks ||
-    !(validText(merchant) || validText(category)) ||
-    !Number.isSafeInteger(maxAmountCents) ||
-    (maxAmountCents as number) <= 0
+    !body ||
+    !scope ||
+    !findProfile(String(body.profileId)) ||
+    !Number.isSafeInteger(body.limitCents) ||
+    (body.limitCents as number) <= 0 ||
+    !validWeek(body.validFromWeek) ||
+    !validWeek(body.validThroughWeek) ||
+    (body.validFromWeek as number) > (body.validThroughWeek as number)
   ) {
     return Response.json(
-      { error: "A known profile, a valid week, a merchant or category, and a positive maximum are required." },
+      { error: "A known profile, a merchant or category, a positive limit and a valid week range are required." },
       { status: 400 },
     );
   }
-
   return Response.json(
-    issueDemoAuthorization({
-      profileId: String(profileId),
-      week: week as number,
-      scope: {
-        ...(validText(merchant) && { merchant: merchant as string }),
-        ...(validText(category) && { category: category as string }),
-      },
-      maxAmountCents: maxAmountCents as number,
-      ttlSeconds: demoExpired === true ? EXPIRED_DEMO_TTL_SECONDS : DEFAULT_TTL_SECONDS,
-      challengeConfirmed: challengeConfirmed === true,
+    issueGrant({
+      profileId: String(body.profileId),
+      scope,
+      limitCents: body.limitCents as number,
+      validFromWeek: body.validFromWeek as number,
+      validThroughWeek: body.validThroughWeek as number,
     }),
     { status: 201 },
   );
+}
+
+export async function DELETE(request: Request) {
+  const profileId = new URL(request.url).searchParams.get("profileId") ?? "";
+  if (!findProfile(profileId)) {
+    return Response.json({ error: "Unknown profile." }, { status: 400 });
+  }
+  revokeGrant(profileId);
+  return new Response(null, { status: 204 });
 }

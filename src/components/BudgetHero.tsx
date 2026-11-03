@@ -51,7 +51,7 @@ export function BudgetHero({
 
   return (
     <section className="grid gap-8 lg:grid-cols-12 lg:gap-10">
-      <div className="reveal lg:col-span-7">
+      <div className="lg:col-span-7">
         <p className="font-mono text-[13px] tracking-wide text-ink-soft uppercase">
           {semester.name} · Week {currentWeek} of {semester.totalWeeks}
         </p>
@@ -59,7 +59,7 @@ export function BudgetHero({
           {firstName}&rsquo;s semester so far
         </h1>
 
-        <p className="mt-5 text-6xl font-semibold tracking-tight sm:text-8xl">
+        <p data-testid="spent-total" className="mt-3 font-mono text-4xl font-medium">
           {formatCents(estimate.spentCents)}
         </p>
         <p className="mt-2 text-lg text-ink-soft">
@@ -85,14 +85,14 @@ export function BudgetHero({
         </div>
       </div>
 
-      <aside className="reveal rounded-sm bg-forest-deep p-6 text-paper [animation-delay:120ms] sm:p-8 lg:col-span-5">
+      <aside className="rounded-sm bg-forest-deep p-6 text-white sm:p-8 lg:col-span-5">
         <h2 className="font-display text-2xl">Budget estimate</h2>
 
         <p className="mt-5 text-sm text-forest-soft">If recent weeks continue</p>
-        <p className="mt-1 text-5xl font-semibold tracking-tight">
+        <p className="mt-1 font-mono text-3xl font-medium">
           {formatDollars(estimate.projectedCents)}
         </p>
-        <p className="mt-2 text-paper">
+        <p className="mt-2 text-white">
           {difference > 0
             ? `by semester's end, about ${formatDollars(difference)} over plan`
             : difference < 0

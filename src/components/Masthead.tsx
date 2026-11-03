@@ -1,14 +1,15 @@
-// The top of every page: a notice that the data is simulated, the logo, the sample
-// student, and navigation.
+// The top of every page: a notice that the data is simulated, and navigation that keeps
+// the main sandbox separate from the experiments.
 
 import Link from "next/link";
 import type { StudentProfile } from "@/lib/types";
 
 const SECTIONS = [
-  { id: "dashboard", label: "Dashboard", href: "/" },
-  { id: "review", label: "Review", href: "/review" },
-  { id: "ask", label: "Ask", href: "/ask" },
+  { id: "workbench", label: "Workbench", href: "/" },
+  { id: "budget", label: "Budget timeline", href: "/budget" },
   { id: "how-it-works", label: "How it works", href: "/how-it-works" },
+  { id: "review", label: "Anomaly model", href: "/review", experiment: true },
+  { id: "ask", label: "Campus Q&A", href: "/ask", experiment: true },
 ] as const;
 
 export type SectionId = (typeof SECTIONS)[number]["id"];
@@ -21,38 +22,23 @@ interface MastheadProps {
 export function Masthead({ student, current }: MastheadProps) {
   return (
     <header>
-      <p className="bg-ink px-4 py-2 text-center text-[13px] text-paper">
-        Simulated demo. Every student, merchant and transaction here is made up.
-        No real accounts are connected and no money moves.
+      <p className="bg-forest-deep px-4 py-1.5 text-center text-[13px] text-white">
+        Simulated demo. Every student, merchant and transaction here is made up. No real accounts
+        are connected, nothing is bought and no money moves.
       </p>
 
       <div className="border-b border-rule bg-surface">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-8 gap-y-3 px-4 pt-5 sm:px-6">
-          <div className="flex items-center gap-2.5">
-            <svg
-              viewBox="0 0 24 24"
-              aria-hidden="true"
-              className="h-7 w-7 shrink-0"
-            >
-              <rect x="3" y="1.5" width="2.2" height="21" rx="1" fill="#16261e" />
-              <path d="M5.2 3.5 22 9 5.2 14.5z" fill="#b5381a" />
-            </svg>
-            <span className="font-display text-2xl">CampusCash</span>
-          </div>
-
+        <div className="mx-auto flex max-w-7xl flex-wrap items-baseline justify-between gap-x-8 gap-y-1 px-4 pt-3 sm:px-6">
+          <p className="font-mono text-sm font-medium">
+            CampusCash <span className="font-normal text-ink-soft">/ authorization sandbox</span>
+          </p>
           {student && (
             <p className="text-sm text-ink-soft">
-              Sample student:{" "}
-              <span className="font-semibold text-ink">{student.name}</span>
-              <span className="hidden sm:inline">
-                {" "}
-                · {student.year}, {student.major}
-              </span>
+              Simulated student: <span className="font-medium text-ink">{student.name}</span>
             </p>
           )}
-
           <nav aria-label="Main" className="w-full">
-            <ul className="-mb-px flex items-end gap-5 text-sm sm:items-baseline sm:gap-7">
+            <ul className="-mb-px mt-1 flex flex-wrap gap-x-5 text-sm">
               {SECTIONS.map((section) => {
                 const isCurrent = section.id === current;
                 return (
@@ -60,9 +46,12 @@ export function Masthead({ student, current }: MastheadProps) {
                     <Link
                       href={section.href}
                       aria-current={isCurrent ? "page" : undefined}
-                      className={`inline-block border-b-2 pb-3 ${isCurrent ? "border-pennant font-semibold" : "border-transparent text-ink-soft hover:text-ink"}`}
+                      className={`inline-block border-b-2 py-2 ${isCurrent ? "border-ink font-medium" : "border-transparent text-ink-soft hover:text-ink"}`}
                     >
                       {section.label}
+                      {"experiment" in section && (
+                        <span className="ml-1.5 font-mono text-[10px] text-ink-soft uppercase">Experiment</span>
+                      )}
                     </Link>
                   </li>
                 );

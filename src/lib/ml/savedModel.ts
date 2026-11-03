@@ -1,11 +1,11 @@
 // Loads the model produced by `npm run eval:ml` and applies it to sample profiles.
-// Everything here is advisory: it only produces scores for people to look at.
+// A separate experiment: it only produces scores for people to look at on /review.
+// Nothing in the authorization or decision pipeline imports this file.
 
 import results from "@/data/generated/ml-results.json";
 import { semester } from "@/data/sampleStudent";
 import type { SimulatedProfile } from "@/data/profiles";
 import { daysBetween } from "../dates";
-import type { PurchaseInput } from "../policy/purchasePolicy";
 import { buildBudgetState } from "../simulation";
 import type { SimulatedPurchase } from "../authorization/requestStore";
 import type { Transaction } from "../types";
@@ -32,22 +32,6 @@ function spendingThrough(
   return buildBudgetState(profile, week, simulated).transactions.filter(
     (t) => t.direction === "debit",
   );
-}
-
-/** How unusual would this purchase look, added to the end of the student's history? */
-export function scoreHypothetical(
-  profile: SimulatedProfile,
-  week: number,
-  purchase: PurchaseInput,
-  simulated: SimulatedPurchase[] = [],
-): number | null {
-  if (!Number.isSafeInteger(purchase.amountCents) || purchase.amountCents <= 0) return null;
-  const history = spendingThrough(profile, week, simulated).map(toMl);
-  const features = extractFeatures([
-    ...history,
-    { ...purchase, day: week * 7 - 1 },
-  ]);
-  return predictScore(model, features[features.length - 1]);
 }
 
 export interface ReviewItem {

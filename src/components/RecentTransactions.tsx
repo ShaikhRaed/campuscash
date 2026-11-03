@@ -17,7 +17,7 @@ export function RecentTransactions({
   totalCount,
 }: RecentTransactionsProps) {
   return (
-    <section className="reveal [animation-delay:340ms]">
+    <section>
       <SectionHeading
         title="Recent transactions"
         description={`The latest ${transactions.length} of ${totalCount} simulated entries so far.`}

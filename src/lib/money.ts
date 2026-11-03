@@ -22,3 +22,9 @@ export function formatCents(cents: number): string {
 export function formatDollars(cents: number): string {
   return wholeDollars.format(cents / 100);
 }
+
+/** "42.50" becomes 4250. Returns null unless it is a sensible dollar amount. */
+export function dollarsToCents(text: string): number | null {
+  if (!/^\d+(\.\d{1,2})?$/.test(text.trim())) return null;
+  return Math.round(Number(text) * 100);
+}

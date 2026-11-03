@@ -1,38 +1,53 @@
-// Everything arriving over the network is untrusted, so we check its shape first.
-// These parsers copy only the known fields, so unexpected extras are dropped.
+// The two signed records in the sandbox, and strict parsing of everything that arrives
+// over the network. Parsers copy known fields only, so unexpected extras (a note, a model
+// score, "approved: true") are dropped before any check runs.
 
-export interface AuthorizationScope {
+export interface GrantScope {
   /** At least one of these must be present. */
   merchant?: string;
   category?: string;
 }
 
-export interface Authorization {
-  version: 1;
-  authorizationId: string;
+/** The student's standing permission for the hypothetical assistant. */
+export interface Grant {
+  version: 2;
+  grantId: string;
   profileId: string;
-  /** The simulated week being judged. Signed, so a client can't choose a kinder one. */
-  week: number;
-  scope: AuthorizationScope;
-  maxAmountCents: number;
+  scope: GrantScope;
+  /** The most the assistant may propose in total under this grant. */
+  limitCents: number;
+  /** Inclusive range on the sandbox's simulated week clock. */
+  validFromWeek: number;
+  validThroughWeek: number;
   issuedAt: string;
-  expiresAt: string;
-  /** One-time value. Once used, this authorization can never be used again. */
-  nonce: string;
-  /** True if the student confirmed the purchase when asked. */
-  challengeConfirmed: boolean;
 }
 
-export interface SignedAuthorization {
-  authorization: Authorization;
+/** One purchase the hypothetical assistant would like to make. */
+export interface Proposal {
+  version: 2;
+  grantId: string;
+  /** One-time value. A signed proposal can be evaluated only once. */
+  nonce: string;
+  merchant: string;
+  category: string;
+  amountCents: number;
+}
+
+export interface SignedGrant {
+  grant: Grant;
   signature: string;
 }
 
-export interface ExecuteRequest {
-  /** Chosen by the client per attempt. A retry reuses the same key. */
+export interface SignedProposal {
+  proposal: Proposal;
+  signature: string;
+}
+
+export interface EvaluationRequest {
+  /** Chosen per attempt. A retry reuses the same key. */
   idempotencyKey: string;
-  purchase: { merchant: string; category: string; amountCents: number };
-  signedAuthorization: SignedAuthorization;
+  signedGrant: SignedGrant;
+  signedProposal: SignedProposal;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -42,75 +57,87 @@ const isText = (v: unknown, max = 200): v is string =>
 const isPositiveCents = (v: unknown): v is number =>
   Number.isSafeInteger(v) && (v as number) > 0;
 const isIsoDate = (v: unknown): v is string =>
-  typeof v === "string" &&
-  !Number.isNaN(Date.parse(v)) &&
-  new Date(v).toISOString() === v;
+  typeof v === "string" && !Number.isNaN(Date.parse(v)) && new Date(v).toISOString() === v;
 
-function parseAuthorization(v: unknown): Authorization | null {
-  if (!isRecord(v) || !isRecord(v.scope)) return null;
-  const { merchant, category } = v.scope;
+export function parseScope(v: unknown): GrantScope | null {
+  if (!isRecord(v)) return null;
+  const { merchant, category } = v;
   if (merchant === undefined && category === undefined) return null;
   if (merchant !== undefined && !isText(merchant)) return null;
-  if (category !== undefined && !isText(category)) return null;
+  if (category !== undefined && !isText(category, 40)) return null;
+  return {
+    ...(merchant !== undefined && { merchant: merchant as string }),
+    ...(category !== undefined && { category: category as string }),
+  };
+}
+
+function parseGrant(v: unknown): Grant | null {
+  if (!isRecord(v)) return null;
+  const scope = parseScope(v.scope);
   if (
-    v.version !== 1 ||
-    !isText(v.authorizationId) ||
+    !scope ||
+    v.version !== 2 ||
+    !isText(v.grantId) ||
     !isText(v.profileId) ||
-    !Number.isInteger(v.week) ||
-    !isPositiveCents(v.maxAmountCents) ||
-    !isIsoDate(v.issuedAt) ||
-    !isIsoDate(v.expiresAt) ||
-    !isText(v.nonce) ||
-    typeof v.challengeConfirmed !== "boolean"
+    !isPositiveCents(v.limitCents) ||
+    !Number.isInteger(v.validFromWeek) ||
+    !Number.isInteger(v.validThroughWeek) ||
+    !isIsoDate(v.issuedAt)
   ) {
     return null;
   }
   return {
-    version: 1,
-    authorizationId: v.authorizationId,
+    version: 2,
+    grantId: v.grantId,
     profileId: v.profileId,
-    week: v.week as number,
-    scope: {
-      ...(merchant !== undefined && { merchant: merchant as string }),
-      ...(category !== undefined && { category: category as string }),
-    },
-    maxAmountCents: v.maxAmountCents,
+    scope,
+    limitCents: v.limitCents,
+    validFromWeek: v.validFromWeek as number,
+    validThroughWeek: v.validThroughWeek as number,
     issuedAt: v.issuedAt,
-    expiresAt: v.expiresAt,
+  };
+}
+
+function parseProposal(v: unknown): Proposal | null {
+  if (
+    !isRecord(v) ||
+    v.version !== 2 ||
+    !isText(v.grantId) ||
+    !isText(v.nonce) ||
+    !isText(v.merchant) ||
+    !isText(v.category, 40) ||
+    !isPositiveCents(v.amountCents)
+  ) {
+    return null;
+  }
+  return {
+    version: 2,
+    grantId: v.grantId,
     nonce: v.nonce,
-    challengeConfirmed: v.challengeConfirmed,
+    merchant: v.merchant,
+    category: v.category,
+    amountCents: v.amountCents,
   };
 }
 
 /** Returns a clean request, or null if anything is missing or the wrong type. */
-export function parseExecuteRequest(raw: unknown): ExecuteRequest | null {
-  if (!isRecord(raw) || !isRecord(raw.purchase) || !isRecord(raw.signedAuthorization)) {
-    return null;
-  }
-  const { idempotencyKey, purchase, signedAuthorization } = raw;
+export function parseEvaluationRequest(raw: unknown): EvaluationRequest | null {
+  if (!isRecord(raw) || !isRecord(raw.signedGrant) || !isRecord(raw.signedProposal)) return null;
+  const { idempotencyKey, signedGrant, signedProposal } = raw;
   if (
     typeof idempotencyKey !== "string" ||
     !/^[A-Za-z0-9_-]{8,128}$/.test(idempotencyKey) ||
-    !isText(purchase.merchant) ||
-    !isText(purchase.category, 40) ||
-    !isPositiveCents(purchase.amountCents) ||
-    !isText(signedAuthorization.signature, 200)
+    !isText(signedGrant.signature, 200) ||
+    !isText(signedProposal.signature, 200)
   ) {
     return null;
   }
-  const authorization = parseAuthorization(signedAuthorization.authorization);
-  if (!authorization) return null;
-
+  const grant = parseGrant(signedGrant.grant);
+  const proposal = parseProposal(signedProposal.proposal);
+  if (!grant || !proposal) return null;
   return {
     idempotencyKey,
-    purchase: {
-      merchant: purchase.merchant,
-      category: purchase.category,
-      amountCents: purchase.amountCents,
-    },
-    signedAuthorization: {
-      authorization,
-      signature: signedAuthorization.signature,
-    },
+    signedGrant: { grant, signature: signedGrant.signature },
+    signedProposal: { proposal, signature: signedProposal.signature },
   };
 }

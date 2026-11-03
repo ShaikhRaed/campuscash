@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import saved from "@/data/generated/ml-results.json";
+import { findProfile } from "@/data/profiles";
 import { buildMlResults, runExperiment } from "./experiment";
+import { buildReviewQueue } from "./savedModel";
 import { extractFeatures, FEATURE_NAMES } from "./features";
 import { predictScore, trainLogistic } from "./logistic";
 import { DEFAULT_CONFIG, generateDataset, makeRandom, splitByStudent } from "./syntheticData";
@@ -102,6 +104,19 @@ describe("saved results", () => {
     for (let i = 1; i < rows.length; i++) {
       expect(rows[i].recall!).toBeLessThanOrEqual(rows[i - 1].recall!);
       expect(rows[i].precision!).toBeGreaterThanOrEqual(rows[i - 1].precision!);
+    }
+  });
+});
+
+describe("anomaly experiment on sample profiles", () => {
+  it("builds a queue limited in size, sorted, with no income or future rows", () => {
+    const queue = buildReviewQueue(findProfile("maya")!, 10, 5);
+    expect(queue.items.length).toBeLessThanOrEqual(5);
+    const scores = queue.items.map((i) => i.score);
+    expect(scores).toEqual([...scores].sort((a, b) => b - a));
+    for (const item of queue.items) {
+      expect(item.transaction.direction).toBe("debit");
+      expect(item.transaction.date <= "2026-11-01").toBe(true);
     }
   });
 });

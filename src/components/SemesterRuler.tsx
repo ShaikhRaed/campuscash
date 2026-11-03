@@ -48,7 +48,7 @@ export function SemesterRuler({
   };
 
   return (
-    <section className="reveal [animation-delay:200ms]">
+    <section className="">
       <SectionHeading
         title="The semester, week by week"
         description={`Total spending per week, against an even ${formatDollars(weeklyPlanCents)} weekly share of the plan.`}
@@ -109,10 +109,9 @@ export function SemesterRuler({
                   className="group relative rounded-sm outline-offset-2 outline-forest hover:z-20 focus-visible:z-20 focus-visible:outline-2"
                 >
                   <div
-                    className="grow-up absolute inset-x-0 bottom-0 mx-auto max-w-6 rounded-t bg-forest group-hover:bg-forest-deep"
+                    className="absolute inset-x-0 bottom-0 mx-auto max-w-6 rounded-t bg-forest group-hover:bg-forest-deep"
                     style={{
                       height: `${toPercent(w.cents)}%`,
-                      animationDelay: `${250 + index * 35}ms`,
                     }}
                   />
                   {isLabeled && (

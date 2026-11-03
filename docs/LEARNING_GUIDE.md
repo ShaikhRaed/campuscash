@@ -1,96 +1,100 @@
 # CampusCash learning guide
 
-CampusCash is a portfolio prototype that uses simulated data only. It is not Experian's system, production
-payment security, real-world fraud detection, or proof of user consent. No money moves, and it has no real
-bank connection, payments or user accounts.
+CampusCash is a student purchase-authorization sandbox on simulated data. A small model running on this computer reads a student's request and returns structured fields. A person reviews them, and deterministic code records whether the proposal would get `ALLOW`, `CHALLENGE` or `DENY`. It never makes a real purchase or connects to a bank.
+It is not Experian's system, production payment security, real-world fraud detection, or proof of user consent.
 
-Numbers here come from `src/data/generated/`. Reproduce them with `npm run eval:ml` and `npm run eval:retrieval`.
+Evaluation numbers come from `src/data/generated/`. Reproduce them with `npm run eval:llm`, `npm run eval:ml` and `npm run eval:retrieval`.
 
 ## 1. Repository map
 
 ```text
 README.md                  Setup, architecture, results, limitations, demo script
 docs/LEARNING_GUIDE.md     This guide
-e2e/demo.spec.ts           Browser tests of the demo
+e2e/demo.spec.ts           Browser tests
 scripts/                   Evaluation runners
 src/
-├── app/                   Pages and API routes
-│   ├── page.tsx           Dashboard (/)
-│   ├── review/  ask/  how-it-works/
+├── app/
+│   ├── page.tsx           Workbench (/), the main demo
+│   ├── budget/            Budget timeline, a reference view
+│   ├── how-it-works/      Rules and measured results
+│   ├── review/  ask/      Separate experiments
 │   └── api/
-│       ├── purchase/review/route.ts     Advisor and policy results; records nothing
-│       ├── authorizations/route.ts      Demo signer (no login)
-│       ├── purchase/execute/route.ts    Checks and records a simulated purchase
-│       ├── purchase/recorded/route.ts   Lists purchases; resets the demo
-│       └── ask/route.ts                 Campus Q&A; read-only
-├── components/            Screens: Dashboard, PurchaseSimulator, AuthorizationPanel, AskPanel, ...
-├── data/
-│   ├── sampleStudent.ts, profiles.ts    Simulated students and transactions
-│   ├── campus/            Fictional documents and evaluation questions
-│   └── generated/         Saved evaluation results (written by scripts, never by hand)
+│       ├── sandbox/state, clock, reset     What the workbench shows and controls
+│       ├── authorizations/route.ts         Sets or revokes a grant (demo student signer)
+│       ├── assistant/propose/route.ts      Signs a proposal (demo assistant signer)
+│       ├── proposals/evaluate/route.ts     The decision pipeline's entry point
+│       ├── assistant/interpret/route.ts    Asks the local model and validates its answer
+│       ├── assistant/model/route.ts        Whether the local model is ready
+│       ├── purchase/recorded/route.ts      Lists simulated purchases
+│       └── ask/route.ts                    Campus Q&A; read-only
+├── components/
+│   ├── workbench/         Workbench, GrantPanel, ModelPanel, ProposalPanel, TracePanel, AuditPanel
+│   └── ...                Budget timeline and experiment screens
+├── data/                  Simulated students, fictional documents, saved results
 └── lib/
+    ├── authorization/     processProposal, schema, signature, requestStore, demoRuntime
+    ├── policy/purchasePolicy.ts    The deterministic rules
+    ├── llm/               ollamaClient, draft (validation), prompt, config, evaluate
     ├── simulation.ts      buildBudgetState: the one budget calculation
     ├── events.ts          Replay with duplicate handling
-    ├── advisor.ts         Simulated advisor (a template, not an AI model)
-    ├── reviewPurchase.ts  Runs advisor and policy side by side
-    ├── policy/purchasePolicy.ts    The deterministic decision-maker
-    ├── authorization/     signature, schema, requestStore, processPurchase, demoRuntime
-    ├── ml/                syntheticData, features, logistic, metrics, experiment, savedModel
-    └── retrieval/         search (BM25, LSA, RRF, Recall@k), answer, evaluate
+    ├── ml/                Anomaly experiment
+    └── retrieval/         Q&A experiment
 ```
 
 ## 2. Main request flow
 
-**Reviewing a purchase** (nothing is recorded):
-
-1. `PurchaseSimulator.tsx` turns dollars into whole cents and sends `POST /api/purchase/review`.
-2. `api/purchase/review/route.ts` checks the profile and week, and ignores any budget numbers sent by the browser.
-3. `simulation.ts` calculates budget state on the server with `buildBudgetState`.
-4. `savedModel.ts` scores how unusual the purchase looks. This score only goes to the advisor.
-5. `reviewPurchase.ts` runs both paths: `suggestPurchase` (advice) and `evaluatePurchasePolicy` (the decision).
-
-**Recording a simulated purchase:**
-
-1. `AuthorizationPanel.tsx` asks `POST /api/authorizations` for a signed record.
-2. It sends that record to `POST /api/purchase/execute`.
-3. `processPurchase.ts` runs these checks in order: shape, retry, signature, expiry, scope, nonce, policy, commit.
-4. `requestStore.ts` adds one row to an in-memory list.
-5. `Dashboard.tsx` fetches the list and recalculates with the same `buildBudgetState`.
+1. **Review.** `Workbench.tsx` loads `GET /api/sandbox/state`. The server calculates budget state with `buildBudgetState` and returns the active grant.
+2. **Interpret (optional).** `ModelPanel.tsx` sends the student's text to `POST /api/assistant/interpret`. `ollamaClient.ts` asks the local model, and `draft.ts` validates the answer. Nothing else happens, and the audit log doesn't change.
+3. **Review.** The person copies the draft into `ProposalPanel.tsx` or types it by hand, checks it and submits. `POST /api/assistant/propose` returns a signed proposal with a fresh nonce.
+4. **Evaluate.** The browser sends the signed grant, signed proposal and an idempotency key to `POST /api/proposals/evaluate`.
+5. **Check.** `processProposal.ts` runs request checks, authorization scope, then `evaluatePurchasePolicy`, building a trace as it goes.
+6. **Record.** `requestStore.ts` stores the answer once and adds an audit entry for every attempt. `ALLOW` also adds a simulated purchase, which `buildBudgetState` then counts.
+7. **Show.** `TracePanel.tsx` shows each check and the result, and `AuditPanel.tsx` shows the log and the replay and retry controls.
 
 ## 3. Key concepts
 
 ### Model suggestion versus deterministic policy
 
-**The idea:** software that can be wrong or manipulated may advise, but plain, testable code decides.
+**The idea:** software that can be wrong or manipulated may help, but plain, testable code decides.
 
-The "suggestion" has two parts: a logistic regression score and a template advisor. Neither is a language
-model. The boundary is this function signature in `src/lib/policy/purchasePolicy.ts`:
+The main flow's suggestion comes from a real local LLM, `llama3.2:3b` through Ollama. It only turns text into fields. The boundary has several layers:
+
+1. **Input:** the model receives only its instructions and the student's text. It gets no tools, keys, grants or budgets (`prompt.ts`, `ollamaClient.ts`).
+2. **Output:** `draft.ts` rejects anything off-schema, drops extra fields such as `decision`, and discards merchants or amounts not in the text.
+3. **Action:** a draft only fills in a form. A person submits it.
+4. **Decision:** the policy takes only structured fields, as its signature in `src/lib/policy/purchasePolicy.ts` shows:
 
 ```ts
 export function evaluatePurchasePolicy(purchase: PurchaseInput, context: PolicyContext): PolicyResult
 ```
 
-It accepts no note, score or document, and the module has no imports. Any `DENY` rule gives `DENY`; otherwise any
-`CHALLENGE` rule gives `CHALLENGE`; otherwise `ALLOW`. The advisor can say "Looks fine" while the policy says `DENY`.
+`boundary.test.ts` reads the import lines and fails if the model code and decision code ever reach each other.
 
-**The limit:** the separation protects the decision from these inputs. It doesn't make the ten rules good ones.
+The final result combines scope checks and policy rules, and the strictest wins: any `DENY` gives `DENY`; otherwise any `CHALLENGE` gives `CHALLENGE`; otherwise `ALLOW`.
+
+**The limit:** these layers protect the rules, not the meaning. In the evaluation, an attack made the model report $1 at the Bookstore for a $20 notebook elsewhere. Those values were in the text, so validation kept them, and they fit the grant. Only a person reviewing the form would catch that.
+
+**Measured results** on 31 hand-written test cases (Apple M5, 16 GB): schema-valid 31 of 31, merchant 28, amount 30, category 23, all three correct 21, injections followed 2 of 6, median latency 868 ms. That's one model and one prompt on a small set, not general quality.
 
 ### Scoped authorization, signature, expiry, nonce and idempotency key
 
 | Concept | Plain language | Proves or does | Does not prove or do |
 | --- | --- | --- | --- |
-| **Scoped authorization** | A permission slip with limits: student, week, merchant and/or category, maximum, expiry | Limits what a purchase may be | Show the student really wanted it |
-| **Ed25519 signature** | A tamper-evident seal from a private key | The fields were signed by this server's demo key and haven't changed | Identify who clicked, or show consent; the same server signs and verifies, with no login |
-| **Expiry** | A use-by time | Rejects the record at or after its expiry | Stop reuse before then |
-| **Nonce** | A one-time number inside the signed record | The same authorization records once, even in a simultaneous race | Survive a restart; memory is cleared and the key replaced |
-| **Idempotency key** | A label for one attempt | Retrying the same attempt returns the first answer and adds nothing | Authorize anything |
+| **Scoped authorization (grant)** | A permission slip: student, merchant and/or category, total limit, valid weeks | Limits what the assistant may propose | Show the student really wanted it |
+| **Ed25519 signatures** | Tamper-evident seals. One demo key signs grants, and another signs proposals | Each record was signed by that demo key and hasn't changed | Identify who acted, or show consent; there is no login, and one server holds both keys |
+| **Expiry (valid period)** | A use-by range on a server-side simulated week | Denies a proposal outside the period, and clients can't supply a week | Use real time; the demo's clock control has no login |
+| **Nonce** | A one-time number inside the signed proposal | A signed proposal is evaluated once, even in a simultaneous race | Survive a restart; memory is cleared and the keys replaced |
+| **Idempotency key** | A label for one attempt | Retrying an identical attempt returns the stored answer and runs nothing again | Authorize anything |
 
-Failed attempts use up neither key nor nonce. A demo reset also replaces the signing key, because forgetting used
-nonces while keeping the key would let old authorizations be replayed.
+**Replay versus retry:** a retry is the same attempt sent again, such as after a dropped connection, so it reuses the key and gets the stored answer. A replay is an old signed proposal sent as if new, under a new key, so the used nonce gets it rejected.
 
-Files: `lib/authorization/processPurchase.ts`, `signature.ts`, `requestStore.ts`, `schema.ts`, `demoRuntime.ts`.
+**Rejected versus denied:** a request that fails shape, signature, nonce or key checks is rejected with no decision, because it can't be trusted. A valid request outside its permission gets `DENY`, which is a real decision that uses up its nonce.
+
+Files: `lib/authorization/processProposal.ts`, `signature.ts`, `requestStore.ts`, `schema.ts`, `demoRuntime.ts`.
 
 ### Precision, recall, PR-AUC, class imbalance and thresholds
+
+This is a separate experiment and isn't part of the main flow.
 
 **The experiment:** a hand-written logistic regression ranks synthetic transactions by how unusual they look.
 
@@ -121,6 +125,8 @@ Files: `lib/ml/experiment.ts`, `metrics.ts`, `syntheticData.ts`, `features.ts`, 
 
 ### Keyword and semantic retrieval, RRF, Recall@k, grounding and prompt injection
 
+This is a separate experiment and isn't part of the main flow.
+
 - **Keyword search (BM25)** rewards rare words shared by the question and a passage.
 - **Semantic search (LSA)** compares topics learned from words that appear together. It is a classic statistical
   method, weaker than neural embeddings, and can't use words the documents never contain.
@@ -149,20 +155,22 @@ Files: `lib/retrieval/search.ts`, `answer.ts`, `evaluate.ts`, `data/campus/`. Te
 
 ### What the prototype does not prove
 
-- **User consent or identity:** there is no login, and a checkbox value is not consent.
-- **Payment security:** keys and state live in memory on one local process, with no audit trail or real key custody.
+- **User consent or identity:** there is no login, and clicking a button in a demo is not consent.
+- **Who really acted:** both keys live in one server process, and the assistant isn't a real agent.
+- **Payment security:** keys and state live in memory on one local process, with no real key custody or tamper-evident audit log.
 - **Fraud performance:** the data is synthetic and self-authored, and flags on the sample profiles weren't evaluated.
+- **Model quality or injection resistance in general:** 31 hand-written cases on one model, prompt and machine. The model did follow attacks.
+- **That fields match what a student meant:** the checks enforce rules on whatever fields they receive.
 - **Retrieval quality in general:** 27 fictional passages, 10 held-out questions, one author.
-- **Injection safety in general:** there is no real language model here, so this shows only one structural boundary.
 - **Experian's approach:** this is an independent learning project and says nothing about how any company's system works.
 
 ## 4. One-day study plan
 
 | Time | Focus | Done when you can... |
 | --- | --- | --- |
-| 1 hr | Run the demo; read `simulation.ts`, `events.ts` | Explain why one shared calculation fixed two bugs |
-| 1.5 hr | `purchasePolicy.ts`, `advisor.ts`, `reviewPurchase.ts` | Add a rule on paper and name the test it needs |
-| 2 hr | `lib/authorization/`, especially `processPurchase.ts` | Explain the check order and why a retry skips expiry |
+| 1 hr | Run the demo; read `Workbench.tsx`, `simulation.ts` | Trace a proposal from the form to the audit log |
+| 1.5 hr | `purchasePolicy.ts`, `lib/llm/draft.ts`, `ollamaClient.ts`, `boundary.test.ts` | Explain each layer between the model and a decision, and why injection-2 still gets through |
+| 2 hr | `lib/authorization/`, especially `processProposal.ts` | Explain the check order, replay versus retry, and rejected versus denied |
 | 1.5 hr | `syntheticData.ts`, `experiment.ts`, `metrics.ts` | Calculate precision and recall from the matrix by hand |
 | 1.5 hr | `search.ts`, `answer.ts`, `retrieval.test.ts` | Calculate an RRF score by hand and explain the reworded-attack test |
 | 1 hr | Delegated authority, know-your-agent, signed mandates, audit trails, from official sources | List what this prototype lacks |
@@ -175,36 +183,48 @@ Try answering aloud before reading each outline.
 ### Model suggestion versus deterministic policy
 
 **Why not let the model make the decision?**
-Models can be wrong, unstable and influenced by input text. A decision with consequences needs rules you can test and
-explain. Here the policy takes only structured fields. The tradeoff is that simple rules are rigid and can be wrong too.
+Models can be wrong, unstable and influenced by input text. A decision with consequences needs rules you can test and explain. Here the pipeline takes only signed, structured fields. The tradeoff is that simple rules are rigid and can be wrong too.
 
-**How do you know a note can't change the decision?**
-It's structural: the function has no parameter for it and the module has no imports. Tests pass hostile text and extreme
-scores and check the result is unchanged. The tests back this up, but the signature is the stronger guarantee.
+**What does the LLM actually do here?**
+It reads one request and returns merchant, amount, category and purpose as JSON, locally through Ollama. It has no tools and can't sign, evaluate or decide. It isn't an agent. The assistant signer is a separate demo route that doesn't call it.
 
-**What's the weakness of this boundary?**
-It protects only the decision. The advisor can still mislead a student, and bad rules stay bad.
+**How do you know model output can't bypass the checks?**
+It's structural: the policy has no parameter for free text, unknown fields are dropped, and import tests confirm the model code can't reach signing or decisions. Tests also send a hostile model's output, claiming `decision: ALLOW`, through the real pipeline.
+
+**So is it safe against prompt injection?**
+No. The rules hold, but the model followed 2 of 6 injections. One changed the merchant and price to values that were in the text and fit the grant, so it would get `ALLOW`. The system stops an attacker from changing rules, not from changing what the model reports. A person reviewing the form is the last defense, and people miss things.
+
+**Why does schema validity of 31 of 31 not impress you?**
+Ollama constrains the output format, so it mostly shows that constraint working. Field accuracy is the more meaningful number, and category was only 23 of 31.
+
+**Why run it locally, and what did you measure?**
+No API keys, no data leaving the machine for inference, and it still works offline after setup. I measured 2.32 GB loaded and 868 ms median on one M5. I checked for outside connections during evaluation but didn't test with the network physically off.
+
+**What happens if Ollama isn't running?**
+The status panel explains setup, and the form and every deterministic check still work. Timeouts, invalid JSON and missing models all become clear results. Browser tests cover this with a fake Ollama.
 
 ### Scoped authorization, signature, expiry, nonce and idempotency key
 
-**What does your signature prove?**
-That the fields were signed with the demo key and haven't changed. Not who acted or whether they agreed: there's no login, and
-one server signs and verifies. Real systems would need authenticated users and separated key custody.
+**What do your signatures prove?**
+That each record was signed with its demo key and hasn't changed. Not who acted or whether they agreed: there's no login, and one server holds both keys. Real systems would need authenticated users and separate key custody.
+
+**Why two signatures?**
+The grant is the student's permission, and the proposal is the assistant's request. Separating them means a captured grant alone can't create new proposals, and each proposal can carry its own nonce. Here it only illustrates the idea, because both keys sit in one process.
 
 **What's the difference between a nonce and an idempotency key?**
-The nonce stops one permission being spent twice. The idempotency key makes one attempt safe to retry. Same key and body returns the
-first answer. A new key with a used authorization is a `REPLAY`.
+The nonce stops one signed proposal being evaluated twice. The idempotency key makes one attempt safe to retry. Same key and body returns the stored answer. A new key with a used proposal is rejected as a replay.
 
-**Why does the retry check come before the expiry check?**
-A client whose connection dropped should still learn the original outcome, even after expiry. Only equivalent requests that
-already succeeded get this answer, and a different body gets a conflict.
+**Why does the retry check come before the signature check?**
+A retry should get its original answer without re-running anything, even after the clock moves. Only an identical request gets it, because it was verified the first time, and a different body gets a conflict.
+
+**Why is an expired proposal denied rather than rejected?**
+The request is trustworthy, and the answer to it is no. Rejection is for requests that can't be trusted or evaluated at all. That distinction also keeps the audit log meaningful.
 
 **Would your uniqueness guarantee hold with two servers?**
-No. It works because one process checks and writes without yielding. Two servers need a shared database with unique constraints, and
-the transaction would need to cover both the check and the write.
+No. It works because one process checks and writes without yielding. Two servers need a shared database with unique constraints, and a transaction covering both the check and the write.
 
-**Why did a reset have to replace the key?**
-Reset forgot used nonces. Keeping the key meant old authorizations still verified and could be spent again. That was a real bug found by testing.
+**Why did a reset have to replace the keys?**
+Reset forgets used nonces. Keeping the keys would let old signed records verify and be spent again. An earlier version had that bug, and testing found it.
 
 ### Precision, recall, PR-AUC, class imbalance and thresholds
 
@@ -237,7 +257,7 @@ Not clearly. Held-out Recall@3 was 0.90 for hybrid and keyword and 1.00 for LSA,
 Whether the final answer is correct or useful. The right passage can be retrieved and the wrong sentence quoted, and I did not measure answer correctness.
 
 **How do you defend against prompt injection?**
-Treat retrieved text as data. Here it is displayed as escaped text and has no path to purchase logic. The detector is a weak extra layer that a reworded attack can evade. There is no language
+Treat retrieved text and student text as data, and keep it away from decisions. In Q&A it's displayed as escaped text. In the main flow, the model's output is validated and reviewed by a person. Neither stops every attack: the Q&A detector can be evaded, and the local model followed 2 of 6 attacks in testing.
 model to hijack, so a system with one would need much more, such as limited tool permissions.
 
 **Why did you tune on one question set and report another?**
@@ -246,11 +266,10 @@ Tuning makes results on those questions optimistic. A separate set scored once g
 ### What the prototype does not prove
 
 **Is this production-ready? What would it take?**
-No. It would need real identity and consent, managed keys, durable storage with unique constraints, audit logs, rate limits, monitoring, security review, and
-evaluation on real data under proper governance.
+No. It would need real identity and consent, managed keys, durable storage with unique constraints, a tamper-evident audit log, rate limits, monitoring, security review, and evaluation on real data under proper governance.
 
 **Is this how Experian does it?**
 No. It's my independent learning project using general ideas. I can't speak to how any company's system works.
 
 **What's the weakest part?**
-Consent: the signature shows data integrity and nothing about a person's intent. Second is that every evaluation is small and self-authored.
+Consent and identity: the signatures show data integrity and say nothing about a person's intent or who acted. Second, every evaluation is small and self-authored.

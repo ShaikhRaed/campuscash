@@ -12,7 +12,8 @@
     "check": "npm run lint && npm run typecheck && npm test && npm run build",
     "eval:ml": "tsx scripts/run-ml-experiment.ts",
     "eval:retrieval": "tsx scripts/run-retrieval-eval.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "eval:llm": "tsx scripts/run-llm-eval.ts"
   },
   "dependencies": {
     "next": "16.4.4",

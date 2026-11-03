@@ -13,7 +13,7 @@ export function CategoryBreakdown({
   const largest = categories[0]?.cents ?? 0;
 
   return (
-    <section className="reveal [animation-delay:280ms]">
+    <section>
       <SectionHeading
         title="Where it went"
         description="Spending by category so far. Income isn't counted."
