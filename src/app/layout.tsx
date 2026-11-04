@@ -21,7 +21,7 @@ const plexMono = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "CampusCash authorization sandbox",
   description:
-    "A student purchase-authorization sandbox on simulated data. Portfolio project: no real purchases, bank connection or user consent.",
+    "A local LLM sandbox for simulated student purchase proposals, authorization checks and policy evaluation. No real purchases, payments or bank connection.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,14 +1,16 @@
 # CampusCash learning guide
 
 CampusCash is a student purchase-authorization sandbox on simulated data. A small model running on this computer reads a student's request and returns structured fields. A person reviews them, and deterministic code records whether the proposal would get `ALLOW`, `CHALLENGE` or `DENY`. It never makes a real purchase or connects to a bank.
-It is not Experian's system, production payment security, real-world fraud detection, or proof of user consent.
+It is a prototype, and it isn't production payment security, real-world fraud detection or proof of user consent.
 
 Evaluation numbers come from `src/data/generated/`. Reproduce them with `npm run eval:llm`, `npm run eval:ml` and `npm run eval:retrieval`.
 
 ## 1. Repository map
 
 ```text
-README.md                  Setup, architecture, results, limitations, demo script
+README.md                  Setup, usage, short technical notes, limitations
+docs/ARCHITECTURE.md       Pipeline, authorization reference, testing, detailed limitations
+docs/EVALUATION.md         Evaluation methods and results
 docs/LEARNING_GUIDE.md     This guide
 e2e/demo.spec.ts           Browser tests
 scripts/                   Evaluation runners
@@ -162,23 +164,22 @@ Files: `lib/retrieval/search.ts`, `answer.ts`, `evaluate.ts`, `data/campus/`. Te
 - **Model quality or injection resistance in general:** 31 hand-written cases on one model, prompt and machine. The model did follow attacks.
 - **That fields match what a student meant:** the checks enforce rules on whatever fields they receive.
 - **Retrieval quality in general:** 27 fictional passages, 10 held-out questions, one author.
-- **Experian's approach:** this is an independent learning project and says nothing about how any company's system works.
 
 ## 4. One-day study plan
 
 | Time | Focus | Done when you can... |
 | --- | --- | --- |
-| 1 hr | Run the demo; read `Workbench.tsx`, `simulation.ts` | Trace a proposal from the form to the audit log |
+| 1 hr | Run the app; read `Workbench.tsx`, `simulation.ts` | Trace a proposal from the form to the audit log |
 | 1.5 hr | `purchasePolicy.ts`, `lib/llm/draft.ts`, `ollamaClient.ts`, `boundary.test.ts` | Explain each layer between the model and a decision, and why injection-2 still gets through |
 | 2 hr | `lib/authorization/`, especially `processProposal.ts` | Explain the check order, replay versus retry, and rejected versus denied |
 | 1.5 hr | `syntheticData.ts`, `experiment.ts`, `metrics.ts` | Calculate precision and recall from the matrix by hand |
 | 1.5 hr | `search.ts`, `answer.ts`, `retrieval.test.ts` | Calculate an RRF score by hand and explain the reworded-attack test |
 | 1 hr | Delegated authority, know-your-agent, signed mandates, audit trails, from official sources | List what this prototype lacks |
-| 30 min | Rehearse the README demo script twice | Answer "what's the weakest part?" without notes |
+| 30 min | Run the full workbench flow twice, using the README's usage notes | Explain the weakest part of the design without notes |
 
-## 5. Interview practice
+## 5. Self-check questions
 
-Try answering aloud before reading each outline.
+Try answering each one before reading the outline.
 
 ### Model suggestion versus deterministic policy
 
@@ -194,18 +195,18 @@ It's structural: the policy has no parameter for free text, unknown fields are d
 **So is it safe against prompt injection?**
 No. The rules hold, but the model followed 2 of 6 injections. One changed the merchant and price to values that were in the text and fit the grant, so it would get `ALLOW`. The system stops an attacker from changing rules, not from changing what the model reports. A person reviewing the form is the last defense, and people miss things.
 
-**Why does schema validity of 31 of 31 not impress you?**
+**Why does schema validity of 31 of 31 say so little?**
 Ollama constrains the output format, so it mostly shows that constraint working. Field accuracy is the more meaningful number, and category was only 23 of 31.
 
-**Why run it locally, and what did you measure?**
-No API keys, no data leaving the machine for inference, and it still works offline after setup. I measured 2.32 GB loaded and 868 ms median on one M5. I checked for outside connections during evaluation but didn't test with the network physically off.
+**Why run it locally, and what was measured?**
+It needs no API keys, inference data stays on the machine, and it should work offline after setup. Measurements on one M5: 2.32 GB loaded and 868 ms median. Outside connections were checked during evaluation, but it hasn't been tested with the network physically off.
 
 **What happens if Ollama isn't running?**
 The status panel explains setup, and the form and every deterministic check still work. Timeouts, invalid JSON and missing models all become clear results. Browser tests cover this with a fake Ollama.
 
 ### Scoped authorization, signature, expiry, nonce and idempotency key
 
-**What do your signatures prove?**
+**What do the signatures prove?**
 That each record was signed with its demo key and hasn't changed. Not who acted or whether they agreed: there's no login, and one server holds both keys. Real systems would need authenticated users and separate key custody.
 
 **Why two signatures?**
@@ -220,7 +221,7 @@ A retry should get its original answer without re-running anything, even after t
 **Why is an expired proposal denied rather than rejected?**
 The request is trustworthy, and the answer to it is no. Rejection is for requests that can't be trusted or evaluated at all. That distinction also keeps the audit log meaningful.
 
-**Would your uniqueness guarantee hold with two servers?**
+**Would the uniqueness guarantee hold with two servers?**
 No. It works because one process checks and writes without yielding. Two servers need a shared database with unique constraints, and a transaction covering both the check and the write.
 
 **Why did a reset have to replace the keys?**
@@ -235,7 +236,7 @@ Only 3.4% of rows are positive, so always answering "normal" scores 96.6% and ca
 Ranking quality across thresholds on this synthetic test set, well above 0.034 for random and 0.172 for a simple rule. It varied from
 0.407 to 0.660 across seeds, and says nothing about real fraud.
 
-**How did you avoid leakage?**
+**How is leakage avoided?**
 Features use only earlier transactions, the split is by student, and the threshold comes from validation data. Tests check the first two.
 The remaining bias is that one author wrote both the data and the model.
 
@@ -243,7 +244,7 @@ The remaining bias is that one author wrote both the data and the model.
 By the cost of each mistake and how many flags people can review, ideally measured on real, recent data, and re-checked over time.
 
 **The model flagged 31 of 32 legitimate large purchases. Is that acceptable?**
-Not for blocking anything, which is one reason its score is only advisory. It's a prompt to look, and that result is itself a reason not to overclaim.
+Not for blocking anything, which is one reason its score is only advisory. It's a prompt to look, and that result shows why it shouldn't block anything.
 
 ### Keyword and semantic retrieval, RRF, Recall@k, grounding and prompt injection
 
@@ -254,22 +255,18 @@ BM25 scores and cosine similarities are on different scales. RRF uses only rank 
 Not clearly. Held-out Recall@3 was 0.90 for hybrid and keyword and 1.00 for LSA, but one question moves it by 0.10. The honest answer is that this set can't tell.
 
 **What does Recall@k miss?**
-Whether the final answer is correct or useful. The right passage can be retrieved and the wrong sentence quoted, and I did not measure answer correctness.
+Whether the final answer is correct or useful. The right passage can be retrieved and the wrong sentence quoted, and answer correctness wasn't measured.
 
 **How do you defend against prompt injection?**
 Treat retrieved text and student text as data, and keep it away from decisions. In Q&A it's displayed as escaped text. In the main flow, the model's output is validated and reviewed by a person. Neither stops every attack: the Q&A detector can be evaded, and the local model followed 2 of 6 attacks in testing.
-model to hijack, so a system with one would need much more, such as limited tool permissions.
 
-**Why did you tune on one question set and report another?**
-Tuning makes results on those questions optimistic. A separate set scored once gives a fairer estimate, though I wrote it too, and I've now seen it, so it can't be reused for tuning.
+**Why tune on one question set and report another?**
+Tuning makes results on those questions optimistic. A separate set scored once gives a fairer estimate, though the same author wrote it, and it has now been seen, so it can't be reused for tuning.
 
 ### What the prototype does not prove
 
 **Is this production-ready? What would it take?**
 No. It would need real identity and consent, managed keys, durable storage with unique constraints, a tamper-evident audit log, rate limits, monitoring, security review, and evaluation on real data under proper governance.
-
-**Is this how Experian does it?**
-No. It's my independent learning project using general ideas. I can't speak to how any company's system works.
 
 **What's the weakest part?**
 Consent and identity: the signatures show data integrity and say nothing about a person's intent or who acted. Second, every evaluation is small and self-authored.

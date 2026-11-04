@@ -3,7 +3,7 @@
 // Ed25519 uses a key pair. The private key creates signatures and the public key
 // checks them, so code that can verify cannot forge. A valid signature proves the
 // record was signed by whoever holds the private key and has not changed since.
-// It does NOT prove a real person approved it. See the README for the full limits.
+// It does NOT prove a real person approved it. See docs/ARCHITECTURE.md for the full limits.
 
 import {
   generateKeyPairSync,
