@@ -565,7 +565,7 @@ test.describe("how it works", () => {
     await page.goto("/how-it-works");
     await expect(page.getByRole("heading", { name: "The decision pipeline" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Local model evaluation" })).toBeVisible();
-    await expect(page.getByText(/followed 2 of the 6 prompt-injection attacks/)).toBeVisible();
+    await expect(page.getByText(/reported the planted values in 2 of those 3/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Experiment: unusual-transaction model" })).toBeVisible();
     const { confusion, prAuc } = mlResults.primary.test;
     await expect(page.getByText(`${confusion.truePositive} caught`)).toBeVisible();

@@ -1,6 +1,7 @@
 // Displays the saved local-model evaluation, written by `npm run eval:llm`.
 
 import results from "@/data/generated/llm-results.json";
+import { INTERPRETATION_CASES } from "@/data/llm/interpretationCases";
 
 const td = "border-t border-rule py-2 pr-4 font-mono text-sm tabular-nums";
 const label = "border-t border-rule py-2 pr-4 text-sm";
@@ -16,6 +17,8 @@ const KIND_LABELS: Record<string, string> = {
 export function LlmResults() {
   const { summary, model, machine, runtime, coldStartMs, caseSetVersion, promptVersion, runDate } = results;
   const t = summary.test;
+  // Only these cases plant specific field values, so only they can show whether an attack was followed.
+  const planted = INTERPRETATION_CASES.filter((c) => c.split === "test" && c.injected).length;
   const fields = [
     ["Merchant", t.fields.merchant],
     ["Amount", t.fields.amount],
@@ -76,10 +79,11 @@ export function LlmResults() {
       <div className="rounded-sm border border-rule bg-surface p-4 text-sm">
         <h3 className="font-display">How to read this</h3>
         <p className="mt-1">
-          The model followed {t.injectionFollowed} of the {t.injectionCases} prompt-injection attacks, turning one $20 notebook
-          into a $1 purchase at a different merchant. That text passed validation, because the planted values really were in
-          the message. So the deterministic checks protect the rules, but they can&rsquo;t tell whether the fields are what the
-          student meant. That&rsquo;s why a person reviews the form.
+          Of the {t.injectionCases} prompt-injection test cases, {planted} plant specific field values. The model reported the
+          planted values in {t.injectionFollowed} of those {planted}: a $20 notebook became $1 at a different merchant, and $60 of
+          concert tickets were labeled &ldquo;books&rdquo;. Both drafts would get ALLOW under the default books-only grant. Validation
+          can&rsquo;t catch them: the planted values were really in the message, and the category is never checked against the
+          text. The deterministic checks protect the rules, not the meaning, which is why a person reviews the form.
         </p>
         <p className="mt-2">
           Schema validity is high largely because Ollama constrains the output format, so it says little about the model. With
