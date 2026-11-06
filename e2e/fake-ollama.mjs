@@ -29,6 +29,18 @@ http
     let raw = "";
     req.on("data", (chunk) => (raw += chunk));
     req.on("end", () => {
+      if (req.url === "/__attacker") {
+        // An unrelated site that tries blind requests against the app (see the cross-site tests).
+        res.writeHead(200, { "Content-Type": "text/html" });
+        return res.end(`<!doctype html><title>other site</title><script>
+          window.attack = async (target) => {
+            const blind = { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" } };
+            await fetch(target + "/api/sandbox/reset", { method: "POST", mode: "no-cors" });
+            await fetch(target + "/api/sandbox/clock", { ...blind, body: JSON.stringify({ week: 14 }) });
+            await fetch(target + "/api/authorizations", { ...blind, body: JSON.stringify({ profileId: "maya", scope: { category: "social" }, limitCents: 99900, validFromWeek: 1, validThroughWeek: 16 }) });
+          };
+        </script>`);
+      }
       if (req.url === "/__state") {
         state = { ...state, ...JSON.parse(raw) };
         return send(res, 200, state);

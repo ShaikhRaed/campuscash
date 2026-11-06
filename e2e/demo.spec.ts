@@ -1,6 +1,7 @@
 // The sandbox demo, run for real: browser, production build, API routes, signatures.
 // Each test starts from a clean sandbox and fails on any browser error.
 
+import http from "node:http";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import mlResults from "../src/data/generated/ml-results.json" with { type: "json" };
 import retrievalResults from "../src/data/generated/retrieval-results.json" with { type: "json" };
@@ -500,6 +501,41 @@ test.describe("separate experiments", () => {
 
   test("Q&A rejects an empty question", async ({ request }) => {
     expect((await request.post("/api/ask", { data: { question: "" } })).status()).toBe(400);
+  });
+});
+
+test.describe("requests from other sites", () => {
+  const snapshot = async (request: APIRequestContext) => {
+    const state = await (await request.get("/api/sandbox/state?profileId=maya")).json();
+    return { week: state.week, grant: state.grant.signedGrant.grant, audit: state.audit.length };
+  };
+
+  test("a page on another site can't change the sandbox with blind requests", async ({ page, request, baseURL }) => {
+    const before = await snapshot(request);
+    await page.goto("http://localhost:3101/__attacker");
+    await page.evaluate((target) => (window as unknown as { attack: (t: string) => Promise<void> }).attack(target), baseURL!);
+    await page.waitForTimeout(300);
+    expect(await snapshot(request)).toEqual(before);
+  });
+
+  test("refuses a foreign Origin and allows the app's own", async ({ request, baseURL }) => {
+    const foreign = await request.post("/api/sandbox/clock", { data: { week: 12 }, headers: { Origin: "http://attacker.example" } });
+    expect(foreign.status()).toBe(403);
+    const own = await request.post("/api/sandbox/clock", { data: { week: 12 }, headers: { Origin: baseURL! } });
+    expect(own.status()).toBe(200);
+  });
+
+  test("refuses a DNS-rebinding Host header, even for reads", async ({ baseURL }) => {
+    const url = new URL("/api/sandbox/state?profileId=maya", baseURL);
+    const status = await new Promise<number>((resolve, reject) => {
+      http
+        .get({ host: url.hostname, port: url.port, path: url.pathname + url.search, headers: { Host: `attacker.example:${url.port}` } }, (res) => {
+          res.resume();
+          resolve(res.statusCode ?? 0);
+        })
+        .on("error", reject);
+    });
+    expect(status).toBe(403);
   });
 });
 
