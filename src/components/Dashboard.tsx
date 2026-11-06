@@ -1,8 +1,7 @@
 "use client";
 
-// The interactive dashboard. "use client" means this code also runs in the browser,
-// which it needs for buttons and timers. It keeps a small amount of state (who, which
-// week, playing or not), and every number on screen is recalculated from that.
+// Budget timeline page (/budget). All numbers are recalculated from the selected student
+// and week.
 
 import { useEffect, useState } from "react";
 import { DEFAULT_PROFILE_ID, DEFAULT_WEEK, profiles } from "@/data/profiles";
@@ -14,7 +13,6 @@ import { recentTransactions, spendingByCategory } from "@/lib/summary";
 import { BudgetHero } from "./BudgetHero";
 import { CategoryBreakdown } from "./CategoryBreakdown";
 import { Masthead } from "./Masthead";
-import { PurchaseSimulator } from "./PurchaseSimulator";
 import { RecentTransactions } from "./RecentTransactions";
 import { SemesterRuler } from "./SemesterRuler";
 import { TimelineControls } from "./TimelineControls";
@@ -41,11 +39,6 @@ export function Dashboard() {
   // The same function the server's policy uses, so the two can't disagree.
   const state = buildBudgetState(profile, week, visibleRecorded, redelivered);
   const { transactions } = state;
-  const merchantOptions = [
-    ...new Set(
-      transactions.filter((t) => t.direction === "debit").map((t) => t.merchant),
-    ),
-  ];
 
   // Playing stops by itself at the end, because this becomes false.
   const isPlaying = wantsToPlay && week < semester.totalWeeks;
@@ -71,10 +64,6 @@ export function Dashboard() {
     };
   }, [profile.id]);
 
-  async function refreshRecorded() {
-    setRecorded(await fetchRecorded(profile.id));
-  }
-
   function changeProfile(id: string) {
     setProfileId(id);
     setRedelivered([]);
@@ -89,9 +78,13 @@ export function Dashboard() {
 
   return (
     <>
-      <Masthead student={profile.student} current="dashboard" />
+      <Masthead student={profile.student} current="budget" />
 
-      <main className="mx-auto max-w-6xl space-y-14 px-4 pt-6 pb-16 sm:px-6">
+      <main className="mx-auto max-w-6xl space-y-10 px-4 pt-4 pb-12 sm:px-6">
+        <p className="text-sm text-ink-soft">
+          Reference view of the simulated semester. Its week control only changes this page. The
+          workbench has its own server-side clock, and ALLOW decisions appear here as simulated purchases.
+        </p>
         <TimelineControls
           profiles={profiles}
           profileId={profile.id}
@@ -127,14 +120,6 @@ export function Dashboard() {
           events={semester.events}
           currentWeek={week}
           budgetCents={profile.student.semesterBudgetCents}
-        />
-
-        <PurchaseSimulator
-          profileId={profile.id}
-          week={week}
-          merchantOptions={merchantOptions}
-          recorded={recorded}
-          onRecordedChange={refreshRecorded}
         />
 
         <div className="grid gap-14 lg:grid-cols-12 lg:gap-10">

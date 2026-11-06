@@ -1,9 +1,7 @@
-// A made-up labeled dataset. Its rules were written by the same author as the model,
-// so the model is partly learning back patterns planted here. That is the central
-// limit of this experiment: it cannot show how anything performs on real spending.
-//
-// Hard cases are planted on purpose: costly purchases that are perfectly normal
-// (laptops, flights), unusual charges that look ordinary, and a few wrong labels.
+// Generates the labeled synthetic dataset. The same person wrote these rules and the model,
+// so the model is partly learning patterns planted here; this says nothing about real spending.
+// Some hard cases are planted on purpose: normal expensive purchases, unusual charges that
+// look ordinary, and a few wrong labels.
 
 import type { MlTransaction } from "./features";
 

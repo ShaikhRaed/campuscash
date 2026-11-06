@@ -1,8 +1,9 @@
-// The trusted decision-maker. Same inputs, same answer, every time.
+// The purchase rules. Same inputs, same answer.
 //
-// Look at what this function does NOT accept: the student's free-text note, the
-// advisor's opinion, model scores and retrieved documents. Text that never
-// reaches the function cannot persuade it. That is the safety design here.
+// evaluatePurchasePolicy only takes three structured fields and server-side budget state.
+// It never gets the student's free text, raw model output or retrieved documents, so text
+// can't argue with it. It can still be given wrong fields (see docs/EVALUATION.md).
+// This file has no imports on purpose; a test checks that.
 
 export const POLICY_VERSION = "2026-11-v1";
 
@@ -57,6 +58,20 @@ export interface PolicyReason {
   outcome: Exclude<Decision, "ALLOW">;
   message: string;
 }
+
+/** Every rule, in order, so a trace can show what passed as well as what fired. */
+export const POLICY_RULES = [
+  { ruleId: "invalid_amount", label: "Amount is a positive whole number of cents" },
+  { ruleId: "invalid_category", label: "Category is supported" },
+  { ruleId: "missing_merchant", label: "Merchant name is present" },
+  { ruleId: "blocked_merchant", label: "Merchant is not on the blocked list" },
+  { ruleId: "over_hard_limit", label: "Within the profile's single-purchase limit" },
+  { ruleId: "over_remaining_budget", label: "Within the budget remaining" },
+  { ruleId: "large_purchase", label: "Below the confirmation amount" },
+  { ruleId: "over_weekly_room", label: "Within the weekly room that keeps the plan on track" },
+  { ruleId: "nonessential_over_projection", label: "Not non-essential while projected over plan" },
+  { ruleId: "unknown_merchant", label: "Merchant appears in the student's history" },
+] as const;
 
 export interface PolicyResult {
   decision: Decision;

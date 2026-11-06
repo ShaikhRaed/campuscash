@@ -1,41 +1,30 @@
-// The root layout wraps every page. It is the one place for the <html> and <body>
-// tags, the fonts, the global stylesheet and the default page title.
-
 import type { Metadata } from "next";
-import { Bricolage_Grotesque, DM_Mono, Young_Serif } from "next/font/google";
+import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from our own app,
 // so visitors' browsers never contact Google.
-const bricolage = Bricolage_Grotesque({
-  variable: "--font-bricolage",
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-plex-sans",
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
-const youngSerif = Young_Serif({
-  variable: "--font-young-serif",
-  subsets: ["latin"],
-  weight: "400",
-});
-
-const dmMono = DM_Mono({
-  variable: "--font-dm-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
   subsets: ["latin"],
   weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "CampusCash",
+  title: "CampusCash authorization sandbox",
   description:
-    "A student-spending demo built on simulated transactions. Portfolio project, not a financial service.",
+    "A local LLM sandbox for simulated student purchase proposals, authorization checks and policy evaluation. No real purchases, payments or bank connection.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${bricolage.variable} ${youngSerif.variable} ${dmMono.variable} antialiased`}
-    >
+    <html lang="en" className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
       <body>{children}</body>
     </html>
   );

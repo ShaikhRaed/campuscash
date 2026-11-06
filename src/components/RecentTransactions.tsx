@@ -1,6 +1,3 @@
-// The latest entries, laid out like a ledger. A real <table> gives screen readers
-// the rows and columns for free. Money in is marked with a "+" as well as color.
-
 import { formatShortDate } from "@/lib/dates";
 import { formatCents } from "@/lib/money";
 import { CATEGORY_LABELS } from "@/lib/summary";
@@ -17,7 +14,7 @@ export function RecentTransactions({
   totalCount,
 }: RecentTransactionsProps) {
   return (
-    <section className="reveal [animation-delay:340ms]">
+    <section>
       <SectionHeading
         title="Recent transactions"
         description={`The latest ${transactions.length} of ${totalCount} simulated entries so far.`}

@@ -1,6 +1,5 @@
-// A "YYYY-MM-DD" string is parsed as midnight UTC. Formatting it in the viewer's
-// own time zone would show Aug 23 instead of Aug 24 for anyone in the Americas,
-// so every date helper here works in UTC.
+// Dates are "YYYY-MM-DD" strings, which JavaScript parses as midnight UTC. Formatting in
+// local time would show the previous day west of UTC, so everything here uses UTC.
 
 const MS_PER_DAY = 86_400_000;
 

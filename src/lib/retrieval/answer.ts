@@ -17,7 +17,7 @@ import {
 /**
  * Share of the question's key words that must appear in the top passages. First tried
  * at 0.6, which refused too many answerable development questions, so it was lowered
- * once. Trust the held-out results in the README, not the development ones.
+ * once. Trust the held-out results in docs/EVALUATION.md, not the development ones.
  */
 export const MIN_COVERAGE = 0.5;
 export const TOP_K = 3;

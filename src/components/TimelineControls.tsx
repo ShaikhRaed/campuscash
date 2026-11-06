@@ -1,8 +1,5 @@
 "use client";
 
-// The "remote control" for the simulated semester. It holds no data itself: it
-// shows what it is told and reports button presses to its parent.
-
 import type { SimulatedProfile } from "@/data/profiles";
 
 interface TimelineControlsProps {
