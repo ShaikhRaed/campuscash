@@ -1,122 +1,100 @@
-# CampusCash
+# campuscash
 
-Sandbox for simulated student purchases. A local LLM reads a request and fills in purchase details. Server rules then decide `ALLOW`, `CHALLENGE` or `DENY`.
+small local llm project for simulated student purchases
 
-Everything is simulated. No bank connection, real payments or user accounts.
+- llama 3.2 3b through ollama
+- model reads a request and pulls out merchant, amount and category
+- server validates that output before it's used
+- you review the fields and submit
+- server checks the proposal against a signed grant
+- grant is scoped by merchant/category, total amount and valid weeks
+- nonce for replay protection
+- idempotency key for retries
+- allow / challenge / deny decided in code, not by the model
+- no real payments or bank connection
 
-## Run
+## how it works
 
-Needs Node 22.12+. No API keys or `.env` file.
+- next.js 16 + typescript, api routes in `src/app/api/`
+- model only gets the prompt and the student's text. no keys, grants or budget
+- output has to match a json schema. extra fields get dropped, a merchant or amount that isn't in the text gets thrown out
+- category isn't checked against the text, it's whatever the model picked
+- grant and proposal are signed with ed25519 demo keys
+- `src/lib/authorization/processProposal.ts` checks: shape, idempotency key, signatures, grant link, nonce, scope, policy rules
+- bad shape / bad signature / used nonce / reused key = rejected, nothing stored
+- anything else gets a decision, stored under the key, nonce used up (deny too)
+- same key + same request returns the stored answer
+- only allow records a purchase. challenge just stops, there's no confirm step
+- every attempt goes in an audit log
+- `src/proxy.ts` blocks /api requests from other sites or not addressed to localhost
+- everything is in memory
+
+`/review` (anomaly model) and `/ask` (campus q&a) are side experiments, not connected to decisions.
+
+more detail: `docs/ARCHITECTURE.md`
+
+## testing
+
+- `npm test`: 245 unit tests, no model needed
+- `npm run test:e2e`: 54 browser tests in chrome against a mock ollama. tests the ui and error handling, not the model
+- `npm run eval:llm`: real model on 37 hand-written cases (6 used while writing the prompt, 31 held out)
+- on the 31: all three fields right on 21, category right on 23
+- prompt injection: 6 held-out cases, 3 plant specific values, model used them in 2
+
+numbers and method: `docs/EVALUATION.md`
+
+## limitations
+
+- the model can produce wrong fields that still pass every check. both injections it followed would get allow if submitted: a $20 notebook became $1 at a different store, and concert tickets got labeled books
+- the checks enforce rules on whatever fields come in. they can't tell if those fields are what the student meant. reviewing the form is the only thing that catches that
+- no login. signatures only show a record wasn't changed after a demo key signed it, not who did it or that they agreed
+- both demo keys are in the same server process
+- state is lost on restart, never pruned, single process only
+- audit log isn't tamper-evident
+- valid weeks use a simulated clock anyone local can move
+- small self-written evals
+- only tested in chrome
+
+## summary
+
+local web app where a small model fills in a purchase form, you check it, and server code decides allow / challenge / deny against a signed grant. nothing real gets bought.
+
+## running it
+
+needs node 22.12+ and git
 
 ```bash
 git clone https://github.com/ShaikhRaed/campuscash.git
 cd campuscash
-git switch feature/local-llm-proposals   # until this is merged into main
 npm install
 npm run dev
 ```
 
-Open <http://localhost:3000>. The server only listens on this computer.
+open http://localhost:3000
 
-Install, the first build (fonts) and the model download need internet.
-
-## Local model
-
-Runs through [Ollama](https://ollama.com). Default model is `llama3.2:3b` (about 2 GB).
+ollama (optional, ~2 GB download, ~2.3 GB memory while loaded):
 
 ```bash
 brew install ollama        # or the installer from ollama.com
-ollama serve               # leave running
+ollama serve
 ollama pull llama3.2:3b
 ```
 
-The model panel should then say `READY`.
+without ollama everything except the model panel still works.
 
-Without Ollama, the panel shows setup steps. The proposal form, example buttons and all server checks still work.
+optional env vars: `OLLAMA_MODEL`, `OLLAMA_BASE_URL` (must be local), `OLLAMA_TIMEOUT_MS`
 
-Should work offline after the downloads, but that hasn't been tested with the network off.
-
-Optional environment variables:
-
-- `OLLAMA_MODEL`: model name. Default `llama3.2:3b`.
-- `OLLAMA_BASE_URL`: default `http://127.0.0.1:11434`. Addresses outside this computer are refused.
-- `OLLAMA_TIMEOUT_MS`: default `30000`.
-
-To keep Ollama inside the repo, unpack the official `ollama-darwin.tgz` into `.ollama-local/bin/` (gitignored), then use `scripts/ollama-local.sh serve` and `scripts/ollama-local.sh pull llama3.2:3b`.
-
-## Usage
-
-On the workbench at `/`:
-
-- Enter a request in the model panel and click **Interpret with local model**.
-- Inspect the raw model output and the validated fields.
-- Click **Copy into proposal form**, check the fields, then **Submit proposal**. Or fill in the form by hand.
-- Inspect each check, the final decision and the audit log.
-- Try **Safe retry**, **Replay** and the tamper controls on the last request.
-- Use **Next week** to get past the grant's period. **Reset sandbox** clears everything.
-
-The grant's limit is a running total, so an earlier `ALLOW` changes later results.
-
-Other pages:
-
-- `/budget`: simulated semester timeline.
-- `/how-it-works`: rules and saved evaluation results.
-- `/review`, `/ask`: separate experiments (anomaly model, campus Q&A). Not part of the decision flow.
-
-## How it works
-
-- Model gets only the student's text. No tools, keys, grants or budgets.
-- Server validates its output: schema check, extra fields dropped, merchant or amount not in the text discarded.
-- Validated fields only fill in a form. A person submits it.
-- Grant: signed with a demo student key (Ed25519). Sets scope, total limit and valid weeks.
-- Proposal: signed with a demo assistant key. Carries merchant, category, amount and a nonce.
-- Request checks run first: shape, idempotency key, both signatures, grant link, nonce. A failure is `REJECTED`, with no decision.
-- Scope checks: active grant, valid period on the server's simulated clock, merchant, category, remaining allowance. A failure is `DENY`.
-- Policy rules: ten deterministic rules against server-side budget state. Strictest result wins.
-- `ALLOW` records a simulated purchase. `CHALLENGE` means it would need student confirmation, and the flow stops there.
-- Retry: same idempotency key and body returns the stored answer. Nothing runs again.
-- Replay: same signed proposal under a new key is rejected, because the nonce is used.
-- Every attempt goes in the audit log.
-
-Main code: `src/lib/llm/`, `src/lib/authorization/processProposal.ts`, `src/lib/policy/purchasePolicy.ts`.
-
-More detail:
-
-- [Architecture and authorization reference](docs/ARCHITECTURE.md)
-- [Evaluation methods and results](docs/EVALUATION.md)
-- [Learning guide](docs/LEARNING_GUIDE.md)
-
-## Tests
+tests:
 
 ```bash
-npm run check      # lint, type check, unit tests, production build
-npm test           # unit tests only
-npm run test:e2e   # browser tests; needs Google Chrome, uses ports 3100 and 3101
+npm run check      # lint, typecheck, unit tests, build
+npm run test:e2e   # needs chrome, uses ports 3100 and 3101
 ```
 
-- Unit tests: pipeline, policy rules, output validation, hostile model output, budget math, retrieval math. No model needed.
-- Browser tests: production build in Chrome against a mock Ollama (`e2e/fake-ollama.mjs`). They cover the UI and failure handling, not model quality.
-
-Real-model evaluation is separate:
+evals (each one overwrites its file in `src/data/generated/`):
 
 ```bash
-npm run eval:llm         # needs Ollama running
-npm run eval:ml          # anomaly experiment
-npm run eval:retrieval   # Q&A experiment
+npm run eval:llm         # needs ollama running
+npm run eval:ml
+npm run eval:retrieval
 ```
-
-Each one overwrites its results file in `src/data/generated/`. Unit tests check those saved files against the code.
-
-## Limitations
-
-- Model can be wrong or manipulated. On 31 hand-written test cases: 21 fully correct, 2 of 6 prompt injections followed. Small set, one model.
-- Checks protect the rules, not the meaning. One followed injection produced a wrong merchant and price that would still get `ALLOW`, so a person has to review the form.
-- Validation only checks that values appear in the text, not what they refer to.
-- No login, so signatures aren't proof of identity or consent. Both demo keys live in one server process.
-- State lives in memory and resets when the server restarts. Uniqueness only holds for one process.
-- Audit log isn't tamper-evident.
-- Expiry uses a simulated clock, which any local client can move.
-- Blocked merchants match by name, so a different spelling gets through that rule.
-- `CHALLENGE` has no confirmation flow.
-- Experiments are small and synthetic or self-authored. Not evidence of real fraud detection, and hybrid search didn't clearly beat keyword search.
-- Browser tests only run in Chrome.
