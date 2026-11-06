@@ -1,9 +1,7 @@
-// Runs the whole experiment. Honest-evaluation steps worth noticing:
-//   - The threshold is chosen on validation data, never on test data.
-//   - The test set is scored once, after every choice has been made.
-//   - Results come with baselines, so the numbers have something to be compared with.
+// Trains and evaluates the anomaly model. The threshold is picked on validation data and
+// the test set is only scored once, with a simple rule and random guessing as baselines.
 
-import { extractFeatures, FEATURE_NAMES, type MlTransaction } from "./features";
+import { extractFeatures, FEATURE_NAMES } from "./features";
 import { predictScore, trainLogistic, type LogisticModel } from "./logistic";
 import {
   averagePrecision,
@@ -151,14 +149,6 @@ export function runExperiment(seed: number): ExperimentResult {
     }),
     model,
   };
-}
-
-/** Scores one student's sorted history with a saved model. */
-export function scoreHistory(
-  model: LogisticModel,
-  transactions: readonly MlTransaction[],
-): number[] {
-  return extractFeatures(transactions).map((f) => predictScore(model, f));
 }
 
 export const PRIMARY_SEED = 2026;

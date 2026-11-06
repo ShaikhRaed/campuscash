@@ -1,8 +1,7 @@
 "use client";
 
-// The budget timeline, a reference view. "use client" means this code also runs in the browser,
-// which it needs for buttons and timers. It keeps a small amount of state (who, which
-// week, playing or not), and every number on screen is recalculated from that.
+// Budget timeline page (/budget). All numbers are recalculated from the selected student
+// and week.
 
 import { useEffect, useState } from "react";
 import { DEFAULT_PROFILE_ID, DEFAULT_WEEK, profiles } from "@/data/profiles";

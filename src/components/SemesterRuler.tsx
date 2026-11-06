@@ -1,6 +1,4 @@
-// A column chart laid over a 16-week ruler. It is built from plain HTML and CSS,
-// so it needs no chart library and no browser JavaScript; hover and keyboard
-// tooltips are handled by CSS. Later, the timeline playback will build on this.
+// Weekly spending chart built from HTML and CSS. Tooltips show on hover and keyboard focus.
 
 import { formatShortDate } from "@/lib/dates";
 import { formatCents, formatDollars } from "@/lib/money";

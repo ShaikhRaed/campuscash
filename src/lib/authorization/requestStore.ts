@@ -1,7 +1,7 @@
-// In-memory stand-in for three database tables: idempotency records (UNIQUE key), used
-// nonces (UNIQUE nonce), and an append-only audit log. commit() checks and writes with no
-// "await" in between, so nothing else can run between them. A real system would need a
-// database to get this across several servers. This log is not tamper-evident.
+// In-memory store for the sandbox. In a real system these would be database tables:
+// idempotency records (unique key), used nonces (unique nonce) and the audit log.
+// commit() is the only place that writes keys and nonces, and it checks both before writing.
+// Everything is lost on restart, nothing is ever pruned, and the audit log isn't tamper-evident.
 
 import type { Decision } from "../policy/purchasePolicy";
 
@@ -57,7 +57,7 @@ export class RequestStore {
     return this.usedNonces.has(nonce);
   }
 
-  /** All-or-nothing: on a conflict, nothing is written. */
+  /** Writes nothing if the key or the nonce is already taken. */
   commit(entry: {
     key: string;
     fingerprint: string;
@@ -78,7 +78,7 @@ export class RequestStore {
     return this.purchases.filter((p) => p.profileId === profileId && p.week <= throughWeek);
   }
 
-  /** How much of a grant has been used by ALLOW decisions. */
+  /** ALLOW purchases are stored with the id "<grantId>:<nonce>", so this finds a grant's purchases. */
   allowanceUsed(grantId: string): number {
     return this.purchases
       .filter((p) => p.id.startsWith(`${grantId}:`))

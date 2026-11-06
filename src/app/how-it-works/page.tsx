@@ -1,4 +1,4 @@
-// The transparency page: what suggests, what decides, and what has been measured.
+// Rules, pipeline and saved evaluation results.
 
 import type { Metadata } from "next";
 import { LlmResults } from "@/components/LlmResults";

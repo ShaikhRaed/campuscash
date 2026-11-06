@@ -1,6 +1,3 @@
-// The same heading style for every dashboard section. A small component like this
-// keeps repeated styling in one place, so a design change happens once.
-
 interface SectionHeadingProps {
   title: string;
   description: string;

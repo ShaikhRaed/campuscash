@@ -115,7 +115,7 @@ describe("purchase policy", () => {
 describe("policy against real sample profiles", () => {
   const maya = findProfile("maya")!;
 
-  it("gives the demo walkthrough's outcomes for Maya at week 10", () => {
+  it("gives ALLOW, CHALLENGE and DENY for the example textbook purchases (Maya, week 10)", () => {
     const week10 = buildPolicyContext(maya, 10);
     expect(
       evaluatePurchasePolicy(

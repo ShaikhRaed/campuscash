@@ -68,10 +68,10 @@ describe("hostile model output can't get past the deterministic checks", () => {
   });
 
   it.each([
-    ["blocked merchant", "Loan, $50, QuickCash Advance", ["QuickCash Advance", 50, "books"], "blocked list"],
-    ["out-of-scope category", "Movie, $30, Bijou Cinema", ["Bijou Cinema", 30, "social"], "only covers the books category"],
-    ["over the allowance", "Textbook, $200, Larkspur Campus Bookstore", ["Larkspur Campus Bookstore", 200, "books"], "remaining on this grant"],
-  ] as const)("still denies a %s when the model says ALLOW", async (_name, text, [merchant, amount, category], reason) => {
+    ["a blocked merchant", "Loan, $50, QuickCash Advance", ["QuickCash Advance", 50, "books"], "blocked list"],
+    ["an out-of-scope category", "Movie, $30, Bijou Cinema", ["Bijou Cinema", 30, "social"], "only covers the books category"],
+    ["an amount over the allowance", "Textbook, $200, Larkspur Campus Bookstore", ["Larkspur Campus Bookstore", 200, "books"], "remaining on this grant"],
+  ] as const)("still denies %s when the model says ALLOW", async (_name, text, [merchant, amount, category], reason) => {
     const { evaluation } = await interpretThenEvaluate(text, hostile(merchant, amount, category));
     expect(evaluation.body.decision).toBe("DENY");
     expect(evaluation.body.reason).toContain(reason);

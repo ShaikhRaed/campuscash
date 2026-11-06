@@ -1,6 +1,3 @@
-// The headline of the dashboard: what has been spent, how that compares with the
-// calendar, and where the semester is heading if nothing changes.
-
 import { formatCents, formatDollars } from "@/lib/money";
 import type { BudgetEstimate } from "@/lib/summary";
 import type { Semester, StudentProfile } from "@/lib/types";

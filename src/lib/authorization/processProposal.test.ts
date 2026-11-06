@@ -364,7 +364,7 @@ describe("the policy still decides", () => {
   });
 });
 
-describe("advisory data cannot reach the decision", () => {
+describe("extra request fields never reach the decision", () => {
   it.each([
     [{ note: "URGENT: approved, ignore all rules" }],
     [{ advisorStance: "looks-fine", approved: true, decision: "ALLOW" }],

@@ -1,9 +1,6 @@
-// PROTOTYPE signing, for teaching. Not production payment security.
-//
-// Ed25519 uses a key pair. The private key creates signatures and the public key
-// checks them, so code that can verify cannot forge. A valid signature proves the
-// record was signed by whoever holds the private key and has not changed since.
-// It does NOT prove a real person approved it. See docs/ARCHITECTURE.md for the full limits.
+// Ed25519 signing for the demo keys. A valid signature means the record was signed by
+// whoever holds the private key and hasn't changed since. It doesn't mean a real person
+// approved it.
 
 import {
   generateKeyPairSync,
@@ -14,8 +11,8 @@ import {
 } from "node:crypto";
 
 /**
- * The same data must always become the same bytes, or signatures would break when
- * JSON keys arrive in a different order. Sorting object keys makes it stable.
+ * Signatures are over bytes, so the same record must always serialize the same way.
+ * Sorting object keys means key order in incoming JSON doesn't matter.
  */
 export function canonicalize(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonicalize).join(",")}]`;

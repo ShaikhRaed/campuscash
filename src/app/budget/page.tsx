@@ -1,5 +1,3 @@
-// The page at "/budget": a reference view of a student's simulated semester.
-
 import type { Metadata } from "next";
 import { Dashboard } from "@/components/Dashboard";
 import { SiteFooter } from "@/components/SiteFooter";

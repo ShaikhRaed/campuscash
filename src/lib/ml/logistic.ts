@@ -1,6 +1,4 @@
-// Logistic regression, the simplest useful classifier: weigh each feature, add them
-// up, and squash the total to between 0 and 1. It is small enough to read and every
-// weight can be inspected. Training is repeated small corrections (gradient descent).
+// Logistic regression trained with plain gradient descent.
 
 export interface LogisticModel {
   weights: number[];

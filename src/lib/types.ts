@@ -1,6 +1,3 @@
-// The shared vocabulary of the app. TypeScript checks every other file against
-// these shapes, so a typo like category: "dinning" fails before the app runs.
-
 export type SpendingCategory =
   | "dining"
   | "groceries"

@@ -1,6 +1,3 @@
-// Ranked bars show where the money went. Every bar is one color because length
-// already carries the meaning, and each row prints its exact value as text.
-
 import { formatCents } from "@/lib/money";
 import type { CategoryTotal } from "@/lib/summary";
 import { SectionHeading } from "./SectionHeading";

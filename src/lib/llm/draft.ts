@@ -1,10 +1,10 @@
-// The boundary around the model's answer. The model's output is untrusted, so this file
-// decides what survives. It uses only deterministic checks:
-//   1. Schema: valid JSON with exactly the expected field types, or it's rejected whole.
-//   2. Unknown fields such as "decision" or "signature" are dropped and reported.
-//   3. Grounding: a merchant or amount that isn't in the student's text is thrown out.
-//   4. Missing information is recalculated here. The model's own list is only a hint.
-// A draft only ever pre-fills a form. It isn't signed, evaluated or trusted by anything.
+// Validates the model's answer. The model is untrusted, so:
+//   1. parseModelOutput: the JSON must have exactly the expected field types, or it's rejected.
+//      Unknown fields like "decision" are dropped and reported.
+//   2. buildDraft: a merchant or amount that isn't in the student's text is thrown out, and
+//      the missing-fields list is worked out here instead of trusting the model's.
+// Category is NOT checked against the text: it's the model's guess from a fixed list.
+// The draft only pre-fills a form for a person to review.
 
 export const DRAFT_CATEGORIES = [
   "books",
@@ -56,7 +56,6 @@ export interface ModelFields {
   missing_information: string[];
 }
 
-/** Step 1 and 2: the model's raw text must be valid JSON of exactly the expected shape. */
 export function parseModelOutput(raw: string): ParsedOutput {
   let value: unknown;
   try {
@@ -115,7 +114,6 @@ function amountsInText(text: string): Set<number> {
   return new Set(found.map((n) => Math.round(Number(n.replace(/,/g, "")) * 100)));
 }
 
-/** Steps 3 and 4: keep only what the student's text supports. */
 export function buildDraft(fields: ModelFields, requestText: string): { draft: ProposalDraft; notes: string[] } {
   const notes: string[] = [];
 
@@ -137,13 +135,14 @@ export function buildDraft(fields: ModelFields, requestText: string): { draft: P
     }
   }
 
+  // Not grounded: the text rarely names a category, so this is taken as the model gave it.
   const category = fields.category;
   const purpose = fields.purpose?.trim().slice(0, MAX_TEXT_LENGTH) || null;
-  const missingInformation: ProposalDraft["missingInformation"] = [
-    ...(merchant ? [] : (["merchant"] as const)),
-    ...(amountCents !== null ? [] : (["amount"] as const)),
-    ...(category ? [] : (["category"] as const)),
-  ];
+
+  const missingInformation: ProposalDraft["missingInformation"] = [];
+  if (!merchant) missingInformation.push("merchant");
+  if (amountCents === null) missingInformation.push("amount");
+  if (!category) missingInformation.push("category");
 
   return {
     draft: { merchant, amountCents, category, purpose, missingInformation, readyForProposal: missingInformation.length === 0 },

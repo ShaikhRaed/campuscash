@@ -1,7 +1,7 @@
 "use client";
 
-// The main sandbox screen. It holds only what the user is doing. Every number and decision
-// comes from the server, because the point is that the browser isn't trusted to decide.
+// The workbench page. All numbers and decisions come from the server; the browser only
+// holds what the user is doing.
 
 import { useEffect, useState } from "react";
 import { DEFAULT_PROFILE_ID, profiles } from "@/data/profiles";

@@ -1,8 +1,9 @@
-// The trusted decision-maker. Same inputs, same answer, every time.
+// The purchase rules. Same inputs, same answer.
 //
-// Look at what this function does NOT accept: the student's free text, the local model's
-// output as such, model scores and retrieved documents. Text that never
-// reaches the function cannot persuade it. That is the safety design here.
+// evaluatePurchasePolicy only takes three structured fields and server-side budget state.
+// It never gets the student's free text, raw model output or retrieved documents, so text
+// can't argue with it. It can still be given wrong fields (see docs/EVALUATION.md).
+// This file has no imports on purpose; a test checks that.
 
 export const POLICY_VERSION = "2026-11-v1";
 

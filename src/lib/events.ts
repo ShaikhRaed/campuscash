@@ -1,7 +1,6 @@
-// Treats transactions as a stream of events, like a real system receiving
-// messages. Networks can deliver a message twice, late or damaged, so replaying
-// the stream must always produce the same ledger. This is "idempotent" handling:
-// applying the same event again changes nothing.
+// Builds the ledger from transaction events. Events can arrive twice, out of order or
+// broken, so duplicates (same eventId) are ignored, bad events are skipped, and the
+// result is sorted by date. Replaying the same events always gives the same ledger.
 
 import { addDays } from "./dates";
 import { weekOfSemester } from "./summary";

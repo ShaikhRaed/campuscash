@@ -1,5 +1,3 @@
-// The root layout wraps every page: the <html> and <body> tags, fonts and global styles.
-
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, IBM_Plex_Sans } from "next/font/google";
 import "./globals.css";

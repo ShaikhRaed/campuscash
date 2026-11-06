@@ -1,6 +1,5 @@
-// The two signed records in the sandbox, and strict parsing of everything that arrives
-// over the network. Parsers copy known fields only, so unexpected extras (a note, a model
-// score, "approved: true") are dropped before any check runs.
+// The two signed record types, and strict parsing of evaluation requests. The parsers copy
+// known fields only, so anything extra in a request is dropped before any check runs.
 
 export interface GrantScope {
   /** At least one of these must be present. */

@@ -1,8 +1,8 @@
-// Server-only state for the sandbox: two demo key pairs, a simulated clock, the active
-// grants and the store. Keys are created at startup and never saved or sent anywhere.
-// Having two keys shows the idea of separate signers, but both live in this one process
-// and the routes that use them have no login, so neither signature shows who really acted.
-// State lives on globalThis so routes share it and dev hot reloads don't replace it.
+// The sandbox's server-side state: two demo key pairs, the simulated clock, each student's
+// active grant and the store. Kept on globalThis so all routes share one copy and dev hot
+// reloads don't replace it. Keys are generated in memory at startup and never saved.
+// Both keys live in this one process and the routes that use them have no login, so a
+// signature can't show who actually acted.
 
 import { randomBytes, randomUUID } from "node:crypto";
 import { findProfile, profiles, DEFAULT_WEEK } from "@/data/profiles";
@@ -100,7 +100,7 @@ export function revokeGrant(profileId: string): void {
   runtime().activeGrants.delete(profileId);
 }
 
-/** Stands in for the hypothetical assistant. It signs whatever it is asked to propose. */
+/** Stand-in for the assistant. It signs whatever it's asked to, so the signature only shows the proposal came through here. */
 export function signProposal(input: {
   grantId: string;
   merchant: string;

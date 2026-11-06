@@ -1,13 +1,14 @@
-// Talks to a local Ollama server. Every failure becomes a clear result and nothing throws,
-// so a missing or misbehaving model can't break the rest of the app. This file only returns
-// data: it can't reach signing, grants, nonces or the decision pipeline.
+// Calls the local Ollama server and validates what comes back. Every failure turns into a
+// status instead of an exception, so a missing or broken model can't take the app down.
+// This only returns a draft; it has no access to signing, grants, nonces or decisions.
 
 import { isLoopbackUrl, NUM_CTX, NUM_PREDICT, readLlmConfig, type LlmConfig } from "./config";
 import { buildDraft, MODEL_OUTPUT_SCHEMA, parseModelOutput, type ModelFields, type ProposalDraft } from "./draft";
 import { buildMessages } from "./prompt";
 
 export const MAX_REQUEST_LENGTH = 500;
-const MAX_RESPONSE_BYTES = 64_000;
+/** Answers are short JSON, so anything this long is broken. Checked after reading the body. */
+const MAX_RESPONSE_CHARS = 64_000;
 
 type FailureStatus = "bad_input" | "invalid_output" | "timeout" | "unavailable" | "model_missing" | "misconfigured";
 
@@ -43,12 +44,6 @@ interface Deps {
 
 const SETUP_HINT = "The manual proposal form still works without it.";
 
-async function readLimitedText(response: Response): Promise<string> {
-  const text = await response.text();
-  if (text.length > MAX_RESPONSE_BYTES) throw new Error("too large");
-  return text;
-}
-
 export async function interpretRequest(requestText: unknown, deps: Deps = {}): Promise<InterpretResult> {
   const config = deps.config ?? readLlmConfig();
   const fetchImpl = deps.fetchImpl ?? fetch;
@@ -83,7 +78,10 @@ export async function interpretRequest(requestText: unknown, deps: Deps = {}): P
         messages: buildMessages(requestText),
       }),
     });
-    const body = await readLimitedText(response);
+    const body = await response.text();
+    if (body.length > MAX_RESPONSE_CHARS) {
+      return fail("invalid_output", "The model's response was too large, so it was discarded.");
+    }
 
     if (response.status === 404) {
       return fail("model_missing", `Ollama is running, but the model ${config.model} isn't downloaded. ${SETUP_HINT}`);
@@ -117,12 +115,9 @@ export async function interpretRequest(requestText: unknown, deps: Deps = {}): P
       notes,
       ignoredFields: parsed.ignoredFields,
     };
-  } catch (error) {
+  } catch {
     if (controller.signal.aborted) {
       return fail("timeout", `The local model didn't answer within ${config.timeoutMs / 1000} seconds. ${SETUP_HINT}`);
-    }
-    if (error instanceof Error && error.message === "too large") {
-      return fail("invalid_output", "The model's response was too large, so it was discarded.");
     }
     return fail("unavailable", `Ollama isn't running at ${config.baseUrl}. ${SETUP_HINT}`);
   } finally {

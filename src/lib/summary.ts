@@ -1,5 +1,4 @@
-// Pure calculations: data goes in, numbers come out, nothing else happens.
-// No React and no page code, so this logic is easy to test and reuse.
+// Budget calculations. Pure functions, no React.
 
 import { addDays, daysBetween } from "./dates";
 import type {
